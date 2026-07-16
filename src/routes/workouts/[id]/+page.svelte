@@ -16,7 +16,7 @@
 
 	type ExerciseOption = { id: number; name: string; muscleGroup: string | null };
 	type SetEntry = { id: number; exerciseId: number; reps: number; weight: number; rpe: number | null; notes: string | null };
-	type Group = { exerciseId: number; exerciseName: string; sets: SetEntry[] };
+	type Group = { exerciseId: number; exerciseName: string; sets: SetEntry[]; targetSets?: number | null };
 
 	let dateValue = $state(data.session.date);
 	let notesValue = $state(data.session.notes ?? '');
@@ -27,10 +27,21 @@
 	// once a set is added, the exercise arrives via `data.exerciseGroups` and is de-duped out of here.
 	let manuallyAdded = $state<ExerciseOption[]>([]);
 
+	// Merge order: already-logged exercises, then this session's plan exercises not yet logged
+	// (shown as ready-to-go placeholders with their target set count), then anything picked ad-hoc.
 	const sessionExerciseList = $derived<Group[]>([
 		...data.exerciseGroups,
+		...data.planExercises
+			.filter((p) => !data.exerciseGroups.some((g) => g.exerciseId === p.exerciseId))
+			.map((p) => ({
+				exerciseId: p.exerciseId,
+				exerciseName: p.exerciseName,
+				sets: [] as SetEntry[],
+				targetSets: p.targetSets
+			})),
 		...manuallyAdded
 			.filter((m) => !data.exerciseGroups.some((g) => g.exerciseId === m.id))
+			.filter((m) => !data.planExercises.some((p) => p.exerciseId === m.id))
 			.map((m) => ({ exerciseId: m.id, exerciseName: m.name, sets: [] as SetEntry[] }))
 	]);
 
@@ -113,8 +124,13 @@
 				{@const defaults = quickEntryDefaults(group)}
 				<Card>
 					<div class="flex items-center justify-between mb-1">
-						<h2 class="text-base font-medium text-[var(--color-text)]">{group.exerciseName}</h2>
-						<a href={`/exercises/${group.exerciseId}`} class="text-xs text-[var(--color-accent)]">Progress</a>
+						<div class="flex items-baseline gap-2 min-w-0">
+							<h2 class="text-base font-medium text-[var(--color-text)] truncate">{group.exerciseName}</h2>
+							{#if group.targetSets}
+								<span class="text-xs text-[var(--color-text-muted)] shrink-0">Target: {group.targetSets} sets</span>
+							{/if}
+						</div>
+						<a href={`/exercises/${group.exerciseId}`} class="text-xs text-[var(--color-accent)] shrink-0">Progress</a>
 					</div>
 					{#if group.sets.length > 0}
 						<div class="divide-y divide-[var(--color-border)] mb-2">

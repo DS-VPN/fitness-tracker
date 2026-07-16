@@ -1,0 +1,14 @@
+import { fail, redirect } from '@sveltejs/kit';
+import { createPlan } from '$lib/server/repositories/workoutPlans';
+import type { Actions } from './$types';
+
+export const actions: Actions = {
+	default: async ({ request, locals }) => {
+		const form = await request.formData();
+		const name = String(form.get('name') ?? '').trim();
+		if (!name) return fail(400, { error: 'Name is required' });
+
+		const plan = await createPlan(locals.user!.id, name);
+		throw redirect(303, `/workouts/plans/${plan.id}`);
+	}
+};

@@ -19,10 +19,10 @@ export async function listSessions(userId: number) {
 		.orderBy(desc(workoutSessions.date), desc(workoutSessions.createdAt));
 }
 
-export async function createSession(userId: number, date: string, notes?: string | null) {
+export async function createSession(userId: number, date: string, notes?: string | null, planId?: number | null) {
 	const [row] = await db
 		.insert(workoutSessions)
-		.values({ userId, date, notes: notes?.trim() || null, createdAt: new Date() })
+		.values({ userId, date, notes: notes?.trim() || null, planId: planId ?? null, createdAt: new Date() })
 		.returning();
 	return row;
 }

@@ -118,9 +118,29 @@ export const exercises = sqliteTable('exercises', {
 	createdAt: timestamp('created_at')
 }, (t) => [unique('exercises_user_name_unique').on(t.userId, t.name)]);
 
+export const workoutPlans = sqliteTable('workout_plans', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	name: text('name').notNull(),
+	createdAt: timestamp('created_at')
+}, (t) => [index('workout_plans_user_idx').on(t.userId)]);
+
+export const planExercises = sqliteTable('plan_exercises', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	planId: integer('plan_id').notNull().references(() => workoutPlans.id, { onDelete: 'cascade' }),
+	exerciseId: integer('exercise_id').notNull().references(() => exercises.id, { onDelete: 'cascade' }),
+	targetSets: integer('target_sets'),
+	sortOrder: integer('sort_order').notNull().default(0),
+	createdAt: timestamp('created_at')
+}, (t) => [
+	index('plan_exercises_plan_idx').on(t.planId),
+	index('plan_exercises_exercise_idx').on(t.exerciseId)
+]);
+
 export const workoutSessions = sqliteTable('workout_sessions', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	planId: integer('plan_id').references(() => workoutPlans.id, { onDelete: 'set null' }),
 	date: text('date').notNull(),
 	notes: text('notes'),
 	createdAt: timestamp('created_at')

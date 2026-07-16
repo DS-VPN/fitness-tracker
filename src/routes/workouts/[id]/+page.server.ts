@@ -9,6 +9,7 @@ import {
 	lastSetsForExercise
 } from '$lib/server/repositories/workouts';
 import { listExercises, createExercise } from '$lib/server/repositories/exercises';
+import { getPlan } from '$lib/server/repositories/workoutPlans';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -27,11 +28,17 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		})
 	);
 
+	// If this session was started from a plan, feed its exercise list (with target sets) to the
+	// page so exercises the plan calls for but haven't had a set logged yet still show up ready to go.
+	const plan = result.session.planId ? await getPlan(userId, result.session.planId) : null;
+	const planExercises = plan?.exercises ?? [];
+
 	return {
 		session: result.session,
 		exerciseGroups: result.exerciseGroups,
 		allExercises,
-		lastSetsByExercise
+		lastSetsByExercise,
+		planExercises
 	};
 };
 

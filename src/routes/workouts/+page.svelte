@@ -20,6 +20,13 @@
 <PageHeader title="Workouts">
 	{#snippet actions()}
 		<a
+			href="/workouts/plans"
+			class="h-9 px-3 flex items-center gap-1.5 rounded-full text-sm font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface-alt)]"
+		>
+			<Icon name="star" size={17} />
+			Plans
+		</a>
+		<a
 			href="/exercises"
 			class="h-9 px-3 flex items-center gap-1.5 rounded-full text-sm font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface-alt)]"
 		>

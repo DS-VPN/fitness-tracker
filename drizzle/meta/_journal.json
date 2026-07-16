@@ -36,6 +36,13 @@
       "when": 1784226614206,
       "tag": "0004_remove_preset_food_products",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1784227965825,
+      "tag": "0005_freezing_titania",
+      "breakpoints": true
     }
   ]
 }
