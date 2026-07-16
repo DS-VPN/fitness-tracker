@@ -63,22 +63,43 @@ Schema migrations run automatically on container start.
 
 ## Deploying to a Proxmox VE LXC
 
-`proxmox/create-lxc.sh` provisions a whole container for you: creates an unprivileged
-Debian LXC (with the `nesting`/`keyctl` features Docker needs), installs Docker inside
-it, clones this repo, and runs `docker compose up -d --build`. Run it **on the Proxmox
-host itself**, as root:
+`proxmox/fitness-tracker.sh` is styled after the [community-scripts.org](https://community-scripts.org)
+(Proxmox VE Helper-Scripts) installers — same banner, spinner, and `msg_info`/`msg_ok`
+output, the same "Default vs Advanced Install" whiptail menu, and the same update
+convention (re-run the script again, but *inside* the container, to update). It's a
+standalone script rather than sourcing their live `build.func` framework: that framework
+always fetches app installers from its own github.com/community-scripts/ProxmoxVE
+catalog, and there's no supported way to point it at a different repo's install script.
+Since Fitness Tracker isn't in that catalog, this vendors the same look and flow instead.
+
+Run it **on the Proxmox host itself**, as root:
 
 ```sh
-./proxmox/create-lxc.sh
+./proxmox/fitness-tracker.sh
 ```
 
-It auto-picks a free container ID, storage, and the newest Debian 12 template, and
-prints the app URL when it's done. Every setting (container ID, hostname, cores,
-memory, disk, bridge, static vs. DHCP networking, repo URL) is overridable via
-environment variables — see the comments at the top of the script. Since this repo is
-private, cloning it from inside the container needs credentials; the script's header
-comment covers your options (make the repo public, use an SSH deploy key already on the
-Proxmox host, or a token embedded in the HTTPS URL for the one-time clone).
+or, without cloning the repo onto the host first (works once this repo is public, or
+with a token embedded in the URL — see below):
+
+```sh
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/DS-VPN/fitness-tracker/main/proxmox/fitness-tracker.sh)"
+```
+
+Choose **Default Install** to auto-pick a free container ID, storage, and the newest
+Debian 12 template, or **Advanced Install** to set the container ID, hostname, disk,
+cores, RAM, bridge, static/DHCP networking, and storage yourself. It creates the LXC,
+installs Docker inside it, deploys the app, and prints the URL when done.
+
+**To update later:** run the exact same command again, but *inside* the container
+(`pct enter <CTID>`) instead of on the host — it detects it's already inside the LXC and
+pulls + rebuilds instead of trying to create a new container.
+
+`REPO_URL`, `APP_DIR`, and `APP_PORT` are overridable via environment variables set
+before running the script — see the comments at the top of `proxmox/fitness-tracker.sh`.
+Since this repo is private, cloning it from inside the container needs credentials:
+make the repo public, use an SSH deploy key already on the Proxmox host (and set
+`REPO_URL` to the SSH form), or embed a token in the HTTPS `REPO_URL` for the one-time
+clone.
 
 ## Sharing a shopping list
 
