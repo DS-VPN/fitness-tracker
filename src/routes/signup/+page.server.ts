@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { createUser, findUserByUsername, createSession, setSessionCookie } from '$lib/server/auth';
 import { validateUsername, validatePassword } from '$lib/server/validation';
+import { seedPresetsForUser } from '$lib/server/presets';
 import type { Actions } from './$types';
 
 export const actions: Actions = {
@@ -25,6 +26,7 @@ export const actions: Actions = {
 		}
 
 		const user = await createUser(username, password);
+		await seedPresetsForUser(user.id);
 		const { token, expiresAt } = await createSession(user.id);
 		setSessionCookie(cookies, token, expiresAt, url.protocol === 'https:');
 
