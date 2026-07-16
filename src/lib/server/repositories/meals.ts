@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { meals, categories, mealCategories } from '$lib/server/db/schema';
-import { and, eq, inArray, like, or, asc } from 'drizzle-orm';
+import { and, eq, inArray, like, or, asc, desc } from 'drizzle-orm';
 
 export type MealInput = {
 	name: string;
@@ -61,6 +61,11 @@ export async function listMeals(opts: { search?: string; categoryId?: number } =
 		.where(conditions.length ? and(...conditions) : undefined)
 		.orderBy(asc(meals.name));
 
+	return attachCategories(rows);
+}
+
+export async function recentMeals(limit: number) {
+	const rows = await db.select().from(meals).orderBy(desc(meals.createdAt)).limit(limit);
 	return attachCategories(rows);
 }
 
