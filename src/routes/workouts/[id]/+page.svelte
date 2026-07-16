@@ -10,6 +10,7 @@
 	import SetRow from '$lib/components/workouts/SetRow.svelte';
 	import QuickEntryRow from '$lib/components/workouts/QuickEntryRow.svelte';
 	import ExercisePicker from '$lib/components/workouts/ExercisePicker.svelte';
+	import RestTimer from '$lib/components/workouts/RestTimer.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -22,6 +23,8 @@
 		exerciseBrand?: string | null;
 		sets: SetEntry[];
 		targetSets?: number | null;
+		restSeconds?: number | null;
+		notes?: string | null;
 	};
 
 	let dateValue = $state(data.session.date);
@@ -33,24 +36,59 @@
 	// once a set is added, the exercise arrives via `data.exerciseGroups` and is de-duped out of here.
 	let manuallyAdded = $state<ExerciseOption[]>([]);
 
-	// Merge order: already-logged exercises, then this session's plan exercises not yet logged
-	// (shown as ready-to-go placeholders with their target set count), then anything picked ad-hoc.
-	const sessionExerciseList = $derived<Group[]>([
-		...data.exerciseGroups,
-		...data.planExercises
-			.filter((p) => !data.exerciseGroups.some((g) => g.exerciseId === p.exerciseId))
-			.map((p) => ({
-				exerciseId: p.exerciseId,
-				exerciseName: p.exerciseName,
-				exerciseBrand: p.exerciseBrand,
-				sets: [] as SetEntry[],
-				targetSets: p.targetSets
-			})),
-		...manuallyAdded
-			.filter((m) => !data.exerciseGroups.some((g) => g.exerciseId === m.id))
-			.filter((m) => !data.planExercises.some((p) => p.exerciseId === m.id))
-			.map((m) => ({ exerciseId: m.id, exerciseName: m.name, exerciseBrand: m.brand, sets: [] as SetEntry[] }))
-	]);
+	// Extra blank set rows requested beyond an exercise's target (or beyond the default single row),
+	// client-only — once submitted they become real logged sets like anything else.
+	let extraSlots = $state<Record<number, number>>({});
+
+	// A session started from a plan never carries over last time's numbers — starts genuinely blank.
+	const noPrefill = $derived(!!data.session.planId);
+
+	// Plan-based sessions render in the plan's own order (a stable "where am I" sequence) rather than
+	// reshuffling completed exercises to the front; non-plan sessions keep the original ordering.
+	const sessionExerciseList = $derived<Group[]>(
+		data.session.planId
+			? [
+					...data.planExercises.map((p) => {
+						const logged = data.exerciseGroups.find((g) => g.exerciseId === p.exerciseId);
+						return {
+							exerciseId: p.exerciseId,
+							exerciseName: p.exerciseName,
+							exerciseBrand: p.exerciseBrand,
+							sets: logged?.sets ?? [],
+							targetSets: p.targetSets,
+							restSeconds: p.restSeconds,
+							notes: p.notes
+						};
+					}),
+					...data.exerciseGroups.filter((g) => !data.planExercises.some((p) => p.exerciseId === g.exerciseId)),
+					...manuallyAdded
+						.filter((m) => !data.planExercises.some((p) => p.exerciseId === m.id))
+						.filter((m) => !data.exerciseGroups.some((g) => g.exerciseId === m.id))
+						.map((m) => ({ exerciseId: m.id, exerciseName: m.name, exerciseBrand: m.brand, sets: [] as SetEntry[] }))
+				]
+			: [
+					...data.exerciseGroups,
+					...manuallyAdded
+						.filter((m) => !data.exerciseGroups.some((g) => g.exerciseId === m.id))
+						.map((m) => ({ exerciseId: m.id, exerciseName: m.name, exerciseBrand: m.brand, sets: [] as SetEntry[] }))
+				]
+	);
+
+	const totalTarget = $derived(sessionExerciseList.reduce((sum, g) => sum + (g.targetSets ?? 0), 0));
+	const totalDone = $derived(
+		sessionExerciseList.reduce((sum, g) => sum + Math.min(g.sets.length, g.targetSets ?? g.sets.length), 0)
+	);
+	const totalLogged = $derived(sessionExerciseList.reduce((sum, g) => sum + g.sets.length, 0));
+
+	let restTarget = $state(90);
+	let restKey = $state(0);
+	let restStarted = $state(false);
+
+	function startRest(seconds: number) {
+		restTarget = seconds;
+		restKey += 1;
+		restStarted = true;
+	}
 
 	function handleExercisePicked(ex: ExerciseOption) {
 		if (!manuallyAdded.some((m) => m.id === ex.id)) {
@@ -59,7 +97,17 @@
 		pickerOpen = false;
 	}
 
-	function quickEntryDefaults(group: Group) {
+	function remainingSlotCount(group: Group) {
+		const base = Math.max(0, (group.targetSets ?? 1) - group.sets.length);
+		return base + (extraSlots[group.exerciseId] ?? 0);
+	}
+
+	function addExtraSlot(exerciseId: number) {
+		extraSlots = { ...extraSlots, [exerciseId]: (extraSlots[exerciseId] ?? 0) + 1 };
+	}
+
+	function slotDefaults(group: Group, slotIndex: number) {
+		if (noPrefill || slotIndex > 0) return { reps: 0, weight: 0 };
 		const lastInSession = group.sets[group.sets.length - 1];
 		if (lastInSession) return { reps: lastInSession.reps, weight: lastInSession.weight };
 		const lastHistoric = data.lastSetsByExercise[group.exerciseId]?.[0];
@@ -99,6 +147,22 @@
 </PageHeader>
 
 <div class="px-4 space-y-4">
+	{#if restStarted}
+		{#key restKey}
+			<RestTimer targetSeconds={restTarget} />
+		{/key}
+	{/if}
+
+	{#if sessionExerciseList.length > 0}
+		<p class="px-1 text-sm text-[var(--color-text-muted)]">
+			{#if totalTarget > 0}
+				{totalDone} of {totalTarget} sets
+			{:else}
+				{totalLogged} {totalLogged === 1 ? 'set' : 'sets'} logged
+			{/if}
+		</p>
+	{/if}
+
 	<Card>
 		<form
 			method="POST"
@@ -128,19 +192,28 @@
 	{:else}
 		<div class="space-y-4">
 			{#each sessionExerciseList as group (group.exerciseId)}
-				{@const defaults = quickEntryDefaults(group)}
+				{@const complete = !!group.targetSets && group.sets.length >= group.targetSets}
 				<Card>
 					<div class="flex items-center justify-between mb-1">
 						<div class="flex items-baseline gap-2 min-w-0">
 							<h2 class="text-base font-medium text-[var(--color-text)] truncate">
 								{group.exerciseName}{#if group.exerciseBrand}<span class="text-[var(--color-text-muted)]"> — {group.exerciseBrand}</span>{/if}
 							</h2>
-							{#if group.targetSets}
-								<span class="text-xs text-[var(--color-text-muted)] shrink-0">Target: {group.targetSets} sets</span>
-							{/if}
 						</div>
 						<a href={`/exercises/${group.exerciseId}`} class="text-xs text-[var(--color-accent)] shrink-0">Progress</a>
 					</div>
+
+					{#if group.targetSets}
+						<p
+							class={`text-xs mb-1.5 ${complete ? 'text-[var(--color-success)] font-medium' : 'text-[var(--color-text-muted)]'}`}
+						>
+							{#if complete}&check;&nbsp;{/if}{group.sets.length}/{group.targetSets} sets
+						</p>
+					{/if}
+					{#if group.notes}
+						<p class="text-xs text-[var(--color-text-muted)] italic mb-2">"{group.notes}"</p>
+					{/if}
+
 					{#if group.sets.length > 0}
 						<div class="divide-y divide-[var(--color-border)] mb-2">
 							{#each group.sets as set, i (set.id)}
@@ -148,7 +221,27 @@
 							{/each}
 						</div>
 					{/if}
-					<QuickEntryRow exerciseId={group.exerciseId} initialReps={defaults.reps} initialWeight={defaults.weight} />
+
+					<div class="space-y-2">
+						{#each Array.from({ length: remainingSlotCount(group) }) as _, i (i)}
+							{@const defaults = slotDefaults(group, i)}
+							<QuickEntryRow
+								exerciseId={group.exerciseId}
+								label={`Set ${group.sets.length + i + 1}`}
+								initialReps={defaults.reps}
+								initialWeight={defaults.weight}
+								onLogged={() => startRest(group.restSeconds ?? 90)}
+							/>
+						{/each}
+					</div>
+
+					<button
+						type="button"
+						onclick={() => addExtraSlot(group.exerciseId)}
+						class="mt-2 text-xs text-[var(--color-accent)]"
+					>
+						+ Add another set
+					</button>
 				</Card>
 			{/each}
 		</div>

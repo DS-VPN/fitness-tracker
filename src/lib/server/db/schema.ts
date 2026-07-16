@@ -131,6 +131,8 @@ export const planExercises = sqliteTable('plan_exercises', {
 	planId: integer('plan_id').notNull().references(() => workoutPlans.id, { onDelete: 'cascade' }),
 	exerciseId: integer('exercise_id').notNull().references(() => exercises.id, { onDelete: 'cascade' }),
 	targetSets: integer('target_sets'),
+	restSeconds: integer('rest_seconds'),
+	notes: text('notes'),
 	sortOrder: integer('sort_order').notNull().default(0),
 	createdAt: timestamp('created_at')
 }, (t) => [

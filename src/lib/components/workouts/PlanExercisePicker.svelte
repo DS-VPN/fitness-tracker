@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import Modal from '$lib/components/Modal.svelte';
 	import TextField from '$lib/components/TextField.svelte';
+	import TextareaField from '$lib/components/TextareaField.svelte';
 	import NumberField from '$lib/components/NumberField.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -20,6 +21,8 @@
 	let newBrand = $state('');
 	let selected = $state<ExerciseOption | null>(null);
 	let targetSets = $state<number | null>(null);
+	let restSeconds = $state<number | null>(null);
+	let planNotes = $state('');
 	let creating = $state(false);
 	let error = $state('');
 
@@ -35,6 +38,8 @@
 	function pick(exercise: ExerciseOption) {
 		selected = exercise;
 		targetSets = null;
+		restSeconds = null;
+		planNotes = '';
 		error = '';
 	}
 
@@ -44,6 +49,8 @@
 		newBrand = '';
 		selected = null;
 		targetSets = null;
+		restSeconds = null;
+		planNotes = '';
 		error = '';
 	}
 </script>
@@ -70,12 +77,22 @@
 			}}
 		>
 			<input type="hidden" name="exerciseId" value={selected.id} />
-			<NumberField
-				label="Target sets (optional)"
-				name="targetSets"
-				bind:value={targetSets}
-				min={1}
-				step={1}
+			<div class="grid grid-cols-2 gap-3 mb-3">
+				<NumberField label="Target sets (optional)" name="targetSets" bind:value={targetSets} min={1} step={1} />
+				<NumberField
+					label="Rest, seconds (optional)"
+					name="restSeconds"
+					bind:value={restSeconds}
+					min={0}
+					step={15}
+				/>
+			</div>
+			<TextareaField
+				label="Note (optional)"
+				name="notes"
+				bind:value={planNotes}
+				placeholder="e.g. Focus on full range of motion"
+				rows={2}
 				class="mb-3"
 			/>
 			<div class="flex gap-2">

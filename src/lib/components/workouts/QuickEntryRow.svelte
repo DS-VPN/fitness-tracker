@@ -5,12 +5,16 @@
 
 	let {
 		exerciseId,
+		label,
 		initialReps = 0,
-		initialWeight = 0
+		initialWeight = 0,
+		onLogged
 	}: {
 		exerciseId: number;
+		label?: string;
 		initialReps?: number;
 		initialWeight?: number;
+		onLogged?: () => void;
 	} = $props();
 
 	// Local state only — deliberately never reset from server data after a submit, so
@@ -24,6 +28,9 @@
 </script>
 
 <div>
+	{#if label}
+		<p class="mb-1 text-xs font-medium text-[var(--color-text-muted)]">{label}</p>
+	{/if}
 	<form
 		method="POST"
 		action="?/addSet"
@@ -37,6 +44,7 @@
 					justAdded = true;
 					clearTimeout(flashTimeout);
 					flashTimeout = setTimeout(() => (justAdded = false), 1000);
+					onLogged?.();
 				} else if (result.type === 'failure') {
 					errorMsg = (result.data?.error as string) ?? 'Could not log set';
 				}

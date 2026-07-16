@@ -59,7 +59,9 @@ export async function getPlan(userId: number, id: number) {
 			exerciseName: exercises.name,
 			exerciseBrand: exercises.brand,
 			muscleGroup: exercises.muscleGroup,
-			targetSets: planExercises.targetSets
+			targetSets: planExercises.targetSets,
+			restSeconds: planExercises.restSeconds,
+			notes: planExercises.notes
 		})
 		.from(planExercises)
 		.innerJoin(exercises, eq(exercises.id, planExercises.exerciseId))
@@ -69,7 +71,14 @@ export async function getPlan(userId: number, id: number) {
 	return { plan, exercises: rows };
 }
 
-export async function addPlanExercise(userId: number, planId: number, exerciseId: number, targetSets?: number | null) {
+export async function addPlanExercise(
+	userId: number,
+	planId: number,
+	exerciseId: number,
+	targetSets?: number | null,
+	restSeconds?: number | null,
+	notes?: string | null
+) {
 	await assertPlanOwned(userId, planId);
 	const [exercise] = await db
 		.select({ id: exercises.id })
@@ -84,21 +93,33 @@ export async function addPlanExercise(userId: number, planId: number, exerciseId
 
 	const [row] = await db
 		.insert(planExercises)
-		.values({ planId, exerciseId, targetSets: targetSets ?? null, sortOrder: maxOrder + 1, createdAt: new Date() })
+		.values({
+			planId,
+			exerciseId,
+			targetSets: targetSets ?? null,
+			restSeconds: restSeconds ?? null,
+			notes: notes?.trim() || null,
+			sortOrder: maxOrder + 1,
+			createdAt: new Date()
+		})
 		.returning();
 	return row;
 }
 
-export async function updatePlanExerciseTargetSets(
+export async function updatePlanExerciseDetails(
 	userId: number,
 	planId: number,
 	planExerciseId: number,
-	targetSets: number | null
+	details: { targetSets: number | null; restSeconds: number | null; notes: string | null }
 ) {
 	await assertPlanOwned(userId, planId);
 	await db
 		.update(planExercises)
-		.set({ targetSets })
+		.set({
+			targetSets: details.targetSets,
+			restSeconds: details.restSeconds,
+			notes: details.notes?.trim() || null
+		})
 		.where(and(eq(planExercises.id, planExerciseId), eq(planExercises.planId, planId)));
 }
 

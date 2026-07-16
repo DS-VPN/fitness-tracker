@@ -4,7 +4,7 @@ import {
 	renamePlan,
 	deletePlan,
 	addPlanExercise,
-	updatePlanExerciseTargetSets,
+	updatePlanExerciseDetails,
 	removePlanExercise
 } from '$lib/server/repositories/workoutPlans';
 import { listExercises, createExercise } from '$lib/server/repositories/exercises';
@@ -39,6 +39,13 @@ function friendlyError(e: unknown, fallback: string): string {
 
 function parseTargetSets(form: FormData): number | null {
 	const raw = form.get('targetSets');
+	if (raw === null || String(raw).trim() === '') return null;
+	const n = Math.round(Number(raw));
+	return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function parseRestSeconds(form: FormData): number | null {
+	const raw = form.get('restSeconds');
 	if (raw === null || String(raw).trim() === '') return null;
 	const n = Math.round(Number(raw));
 	return Number.isFinite(n) && n > 0 ? n : null;
@@ -79,22 +86,35 @@ export const actions: Actions = {
 		const planId = Number(params.id);
 		const form = await request.formData();
 		const exerciseId = Number(form.get('exerciseId'));
+		const notes = String(form.get('notes') ?? '').trim();
 		if (!Number.isFinite(exerciseId)) return fail(400, { error: 'Invalid exercise' });
 		try {
-			await addPlanExercise(locals.user!.id, planId, exerciseId, parseTargetSets(form));
+			await addPlanExercise(
+				locals.user!.id,
+				planId,
+				exerciseId,
+				parseTargetSets(form),
+				parseRestSeconds(form),
+				notes || null
+			);
 		} catch (e) {
 			return fail(400, { error: e instanceof Error ? e.message : 'Could not add exercise' });
 		}
 		return { success: true };
 	},
 
-	updateTargetSets: async ({ request, params, locals }) => {
+	updateDetails: async ({ request, params, locals }) => {
 		const planId = Number(params.id);
 		const form = await request.formData();
 		const planExerciseId = Number(form.get('planExerciseId'));
+		const notes = String(form.get('notes') ?? '').trim();
 		if (!Number.isFinite(planExerciseId)) return fail(400, { error: 'Invalid exercise' });
 		try {
-			await updatePlanExerciseTargetSets(locals.user!.id, planId, planExerciseId, parseTargetSets(form));
+			await updatePlanExerciseDetails(locals.user!.id, planId, planExerciseId, {
+				targetSets: parseTargetSets(form),
+				restSeconds: parseRestSeconds(form),
+				notes: notes || null
+			});
 		} catch (e) {
 			return fail(400, { error: e instanceof Error ? e.message : 'Could not update' });
 		}
