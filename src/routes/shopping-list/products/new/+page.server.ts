@@ -1,4 +1,4 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import { createProduct, type ProductInput } from '$lib/server/repositories/products';
 import type { Actions } from './$types';
 
@@ -46,7 +46,7 @@ export const actions: Actions = {
 		const parsed = parseProductForm(form);
 		if ('error' in parsed) return fail(400, { error: parsed.error });
 
-		await createProduct(locals.user!.id, parsed.data);
-		throw redirect(303, '/shopping-list/products');
+		const product = await createProduct(locals.user!.id, parsed.data);
+		return { success: true, product };
 	}
 };

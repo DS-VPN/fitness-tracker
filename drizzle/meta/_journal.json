@@ -29,6 +29,13 @@
       "when": 1784225902642,
       "tag": "0003_fix_preset_product_nutrition",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1784226614206,
+      "tag": "0004_remove_preset_food_products",
+      "breakpoints": true
     }
   ]
 }

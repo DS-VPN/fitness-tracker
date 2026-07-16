@@ -21,12 +21,18 @@
 		initial,
 		submitLabel = 'Save',
 		formError = null,
-		action
+		action,
+		resetAfterSubmit = false,
+		onAdded
 	}: {
 		initial?: Initial;
 		submitLabel?: string;
 		formError?: string | null;
 		action?: string;
+		/** Stay on the page and clear the form after a successful submit, instead of the caller navigating away — used for rapid back-to-back entry. Brand is kept as-is between adds since a batch is often all the same brand. */
+		resetAfterSubmit?: boolean;
+		/** Called with the created product after a successful submit (only meaningful alongside resetAfterSubmit). */
+		onAdded?: (product: unknown) => void;
 	} = $props();
 
 	let name = $state(initial?.name ?? '');
@@ -40,7 +46,12 @@
 	let sugar = $state<number | null>(initial?.sugar ?? null);
 	let sodium = $state<number | null>(initial?.sodium ?? null);
 
+	let showOptional = $state(initial?.fiber != null || initial?.sugar != null || initial?.sodium != null);
 	let submitting = $state(false);
+
+	function focusName() {
+		document.getElementById('field-name')?.focus();
+	}
 </script>
 
 <form
@@ -49,9 +60,22 @@
 	class="space-y-5 pb-10"
 	use:enhance={() => {
 		submitting = true;
-		return async ({ update }) => {
-			await update();
+		return async ({ result, update }) => {
 			submitting = false;
+			if (result.type === 'success' && resetAfterSubmit) {
+				onAdded?.((result.data as { product?: unknown } | undefined)?.product);
+				name = '';
+				servingSize = '';
+				calories = 0;
+				protein = 0;
+				carbs = 0;
+				fat = 0;
+				fiber = null;
+				sugar = null;
+				sodium = null;
+				focusName();
+			}
+			await update({ reset: false });
 		};
 	}}
 >
@@ -74,14 +98,24 @@
 		</div>
 	</div>
 
-	<div>
-		<p class="mb-1.5 text-sm font-medium text-[var(--color-text)]">Optional details</p>
-		<div class="grid grid-cols-3 gap-3">
-			<NumberField label="Fiber" name="fiber" bind:value={fiber} min={0} step={0.1} suffix="g" />
-			<NumberField label="Sugar" name="sugar" bind:value={sugar} min={0} step={0.1} suffix="g" />
-			<NumberField label="Sodium" name="sodium" bind:value={sodium} min={0} step={1} suffix="mg" />
+	{#if showOptional}
+		<div>
+			<p class="mb-1.5 text-sm font-medium text-[var(--color-text)]">Optional details</p>
+			<div class="grid grid-cols-3 gap-3">
+				<NumberField label="Fiber" name="fiber" bind:value={fiber} min={0} step={0.1} suffix="g" />
+				<NumberField label="Sugar" name="sugar" bind:value={sugar} min={0} step={0.1} suffix="g" />
+				<NumberField label="Sodium" name="sodium" bind:value={sodium} min={0} step={1} suffix="mg" />
+			</div>
 		</div>
-	</div>
+	{:else}
+		<button
+			type="button"
+			onclick={() => (showOptional = true)}
+			class="text-sm text-[var(--color-accent)]"
+		>
+			+ Add fiber, sugar, sodium
+		</button>
+	{/if}
 
 	{#if formError}
 		<p class="text-sm text-[var(--color-danger)]">{formError}</p>
