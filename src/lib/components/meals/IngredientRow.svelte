@@ -128,7 +128,7 @@
 			}}
 		>
 			<input type="hidden" name="ingredientId" value={ingredient.id} />
-			<NumberField label="Quantity" name="quantity" bind:value={editQuantity} min={0.01} step={0.5} class="flex-1" />
+			<NumberField label="Quantity" name="quantity" bind:value={editQuantity} min={0.01} step={0.01} class="flex-1" />
 			<Button type="button" variant="ghost" onclick={() => (editing = false)}>Cancel</Button>
 			<Button type="submit" variant="primary">Save</Button>
 		</form>

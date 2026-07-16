@@ -22,6 +22,13 @@
       "when": 1784223789380,
       "tag": "0002_free_supernaut",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1784225902642,
+      "tag": "0003_fix_preset_product_nutrition",
+      "breakpoints": true
     }
   ]
 }

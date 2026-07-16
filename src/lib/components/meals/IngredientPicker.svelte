@@ -96,7 +96,7 @@
 			}}
 		>
 			<input type="hidden" name={selected.type === 'product' ? 'productId' : 'subMealId'} value={selected.id} />
-			<NumberField label="Quantity" name="quantity" bind:value={quantity} min={0.01} step={0.5} class="mb-3" />
+			<NumberField label="Quantity" name="quantity" bind:value={quantity} min={0.01} step={0.01} class="mb-3" />
 			<div class="flex gap-2">
 				<Button type="button" variant="ghost" onclick={() => (selected = null)}>Back</Button>
 				<Button type="submit" variant="primary" full class="flex-1">Add</Button>
@@ -128,7 +128,7 @@
 					<NumberField label="Carbs" name="carbs" bind:value={newCarbs} min={0} step={0.1} suffix="g" required />
 					<NumberField label="Fat" name="fat" bind:value={newFat} min={0} step={0.1} suffix="g" required />
 				</div>
-				<NumberField label="Quantity to add" name="quantity" bind:value={quantity} min={0.01} step={0.5} />
+				<NumberField label="Quantity to add" name="quantity" bind:value={quantity} min={0.01} step={0.01} />
 			</div>
 			<div class="mt-4 flex gap-2">
 				<Button type="button" variant="ghost" onclick={() => (creatingProduct = false)}>Back</Button>
