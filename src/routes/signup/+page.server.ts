@@ -1,11 +1,10 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { dev } from '$app/environment';
 import { createUser, findUserByUsername, createSession, setSessionCookie } from '$lib/server/auth';
 import { validateUsername, validatePassword } from '$lib/server/validation';
 import type { Actions } from './$types';
 
 export const actions: Actions = {
-	default: async ({ request, cookies }) => {
+	default: async ({ request, cookies, url }) => {
 		const form = await request.formData();
 		const username = String(form.get('username') ?? '').trim();
 		const password = String(form.get('password') ?? '');
@@ -27,7 +26,7 @@ export const actions: Actions = {
 
 		const user = await createUser(username, password);
 		const { token, expiresAt } = await createSession(user.id);
-		setSessionCookie(cookies, token, expiresAt, !dev);
+		setSessionCookie(cookies, token, expiresAt, url.protocol === 'https:');
 
 		throw redirect(303, '/');
 	}

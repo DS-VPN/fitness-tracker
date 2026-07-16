@@ -1,5 +1,4 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { dev } from '$app/environment';
 import { findUserByUsername, verifyPassword, createSession, setSessionCookie } from '$lib/server/auth';
 import type { Actions } from './$types';
 
@@ -19,7 +18,7 @@ export const actions: Actions = {
 		}
 
 		const { token, expiresAt } = await createSession(user.id);
-		setSessionCookie(cookies, token, expiresAt, !dev);
+		setSessionCookie(cookies, token, expiresAt, url.protocol === 'https:');
 
 		const redirectTo = url.searchParams.get('redirectTo');
 		throw redirect(303, redirectTo && redirectTo.startsWith('/') ? redirectTo : '/');
