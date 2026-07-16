@@ -40,7 +40,7 @@
 		icon: 'h-11 w-11 shrink-0'
 	};
 
-	const classes = $derived(`${base} ${variants[variant]} ${sizes[size]} ${className}`);
+	const classes = $derived(`${base} ${variants[variant]} ${sizes[size]} ${full ? 'w-full' : ''} ${className}`);
 </script>
 
 {#if href && !disabled}

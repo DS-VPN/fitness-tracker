@@ -1,21 +1,43 @@
 import { db } from '$lib/server/db';
-import { shoppingListItems, meals } from '$lib/server/db/schema';
+import { shoppingListItems, meals, users, shoppingListShares } from '$lib/server/db/schema';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 
-export async function listShoppingList() {
-	const rows = await db.select().from(shoppingListItems).orderBy(asc(shoppingListItems.createdAt));
+export async function hasListAccess(actingUserId: number, ownerId: number): Promise<boolean> {
+	if (actingUserId === ownerId) return true;
+	const [row] = await db
+		.select({ id: shoppingListShares.id })
+		.from(shoppingListShares)
+		.where(and(eq(shoppingListShares.ownerId, ownerId), eq(shoppingListShares.sharedWithUserId, actingUserId)));
+	return !!row;
+}
+
+async function assertAccess(actingUserId: number, ownerId: number) {
+	if (!(await hasListAccess(actingUserId, ownerId))) {
+		throw new Error('You do not have access to this shopping list');
+	}
+}
+
+export async function listShoppingList(ownerId: number) {
+	const rows = await db
+		.select()
+		.from(shoppingListItems)
+		.where(eq(shoppingListItems.userId, ownerId))
+		.orderBy(asc(shoppingListItems.createdAt));
 	return {
 		fromMeals: rows.filter((r) => r.mealId !== null),
 		manual: rows.filter((r) => r.mealId === null)
 	};
 }
 
-/** Adds a meal's product to the list, combining with an existing (unchecked or checked) line for that meal. */
-export async function addMealToList(mealId: number) {
-	const [meal] = await db.select().from(meals).where(eq(meals.id, mealId));
+/** Adds a meal's product to the current user's own list (meals are private, so the list is always your own). */
+export async function addMealToList(userId: number, mealId: number) {
+	const [meal] = await db.select().from(meals).where(and(eq(meals.id, mealId), eq(meals.userId, userId)));
 	if (!meal) throw new Error('Meal not found');
 
-	const [existing] = await db.select().from(shoppingListItems).where(eq(shoppingListItems.mealId, mealId));
+	const [existing] = await db
+		.select()
+		.from(shoppingListItems)
+		.where(and(eq(shoppingListItems.userId, userId), eq(shoppingListItems.mealId, mealId)));
 
 	if (existing) {
 		await db
@@ -26,6 +48,7 @@ export async function addMealToList(mealId: number) {
 	}
 
 	await db.insert(shoppingListItems).values({
+		userId,
 		mealId: meal.id,
 		name: meal.name,
 		brand: meal.brand,
@@ -34,14 +57,21 @@ export async function addMealToList(mealId: number) {
 	});
 }
 
-export async function addManualItem(name: string, brand?: string) {
+export async function addManualItem(actingUserId: number, ownerId: number, name: string, brand?: string) {
+	await assertAccess(actingUserId, ownerId);
 	const trimmed = name.trim();
 	if (!trimmed) throw new Error('Item name is required');
 
 	const [existing] = await db
 		.select()
 		.from(shoppingListItems)
-		.where(and(isNull(shoppingListItems.mealId), sql`lower(${shoppingListItems.name}) = lower(${trimmed})`));
+		.where(
+			and(
+				eq(shoppingListItems.userId, ownerId),
+				isNull(shoppingListItems.mealId),
+				sql`lower(${shoppingListItems.name}) = lower(${trimmed})`
+			)
+		);
 
 	if (existing) {
 		await db
@@ -51,24 +81,89 @@ export async function addManualItem(name: string, brand?: string) {
 		return;
 	}
 
-	await db.insert(shoppingListItems).values({ name: trimmed, brand: brand?.trim() || null, quantity: 1 });
+	await db.insert(shoppingListItems).values({ userId: ownerId, name: trimmed, brand: brand?.trim() || null, quantity: 1 });
 }
 
-export async function setChecked(id: number, checked: boolean) {
-	await db.update(shoppingListItems).set({ checked }).where(eq(shoppingListItems.id, id));
+export async function setChecked(actingUserId: number, ownerId: number, id: number, checked: boolean) {
+	await assertAccess(actingUserId, ownerId);
+	await db
+		.update(shoppingListItems)
+		.set({ checked })
+		.where(and(eq(shoppingListItems.id, id), eq(shoppingListItems.userId, ownerId)));
 }
 
-export async function setQuantity(id: number, quantity: number) {
+export async function setQuantity(actingUserId: number, ownerId: number, id: number, quantity: number) {
+	await assertAccess(actingUserId, ownerId);
 	await db
 		.update(shoppingListItems)
 		.set({ quantity: Math.max(1, Math.round(quantity)) })
-		.where(eq(shoppingListItems.id, id));
+		.where(and(eq(shoppingListItems.id, id), eq(shoppingListItems.userId, ownerId)));
 }
 
-export async function removeItem(id: number) {
-	await db.delete(shoppingListItems).where(eq(shoppingListItems.id, id));
+export async function removeItem(actingUserId: number, ownerId: number, id: number) {
+	await assertAccess(actingUserId, ownerId);
+	await db.delete(shoppingListItems).where(and(eq(shoppingListItems.id, id), eq(shoppingListItems.userId, ownerId)));
 }
 
-export async function clearChecked() {
-	await db.delete(shoppingListItems).where(eq(shoppingListItems.checked, true));
+export async function clearChecked(actingUserId: number, ownerId: number) {
+	await assertAccess(actingUserId, ownerId);
+	await db
+		.delete(shoppingListItems)
+		.where(and(eq(shoppingListItems.userId, ownerId), eq(shoppingListItems.checked, true)));
+}
+
+// --- Sharing management ---
+
+/** People you've granted access to your own list. */
+export async function listMyShares(ownerId: number) {
+	return db
+		.select({ userId: users.id, username: users.username })
+		.from(shoppingListShares)
+		.innerJoin(users, eq(users.id, shoppingListShares.sharedWithUserId))
+		.where(eq(shoppingListShares.ownerId, ownerId))
+		.orderBy(asc(users.username));
+}
+
+/** Other people's lists you've been granted access to. */
+export async function listSharedWithMe(userId: number) {
+	return db
+		.select({ ownerId: users.id, ownerUsername: users.username })
+		.from(shoppingListShares)
+		.innerJoin(users, eq(users.id, shoppingListShares.ownerId))
+		.where(eq(shoppingListShares.sharedWithUserId, userId))
+		.orderBy(asc(users.username));
+}
+
+export async function shareListWith(ownerId: number, targetUsername: string) {
+	const trimmed = targetUsername.trim();
+	if (!trimmed) throw new Error('Username is required');
+
+	const [target] = await db
+		.select({ id: users.id })
+		.from(users)
+		.where(sql`lower(${users.username}) = lower(${trimmed})`);
+	if (!target) throw new Error('No user with that username');
+	if (target.id === ownerId) throw new Error('You already have access to your own list');
+
+	const [existing] = await db
+		.select({ id: shoppingListShares.id })
+		.from(shoppingListShares)
+		.where(and(eq(shoppingListShares.ownerId, ownerId), eq(shoppingListShares.sharedWithUserId, target.id)));
+	if (existing) throw new Error('Already shared with that user');
+
+	await db.insert(shoppingListShares).values({ ownerId, sharedWithUserId: target.id });
+}
+
+/** Called by the list owner to revoke someone else's access. */
+export async function revokeShare(ownerId: number, sharedWithUserId: number) {
+	await db
+		.delete(shoppingListShares)
+		.where(and(eq(shoppingListShares.ownerId, ownerId), eq(shoppingListShares.sharedWithUserId, sharedWithUserId)));
+}
+
+/** Called by the recipient to remove their own access to someone else's list. */
+export async function leaveSharedList(userId: number, ownerId: number) {
+	await db
+		.delete(shoppingListShares)
+		.where(and(eq(shoppingListShares.ownerId, ownerId), eq(shoppingListShares.sharedWithUserId, userId)));
 }

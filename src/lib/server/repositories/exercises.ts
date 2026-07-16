@@ -1,8 +1,8 @@
 import { db } from '$lib/server/db';
 import { exercises, workoutSets } from '$lib/server/db/schema';
-import { asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 
-export async function listExercises() {
+export async function listExercises(userId: number) {
 	return db
 		.select({
 			id: exercises.id,
@@ -12,32 +12,36 @@ export async function listExercises() {
 		})
 		.from(exercises)
 		.leftJoin(workoutSets, eq(workoutSets.exerciseId, exercises.id))
+		.where(eq(exercises.userId, userId))
 		.groupBy(exercises.id)
 		.orderBy(asc(exercises.name));
 }
 
-export async function getExercise(id: number) {
-	const [row] = await db.select().from(exercises).where(eq(exercises.id, id));
+export async function getExercise(userId: number, id: number) {
+	const [row] = await db
+		.select()
+		.from(exercises)
+		.where(and(eq(exercises.id, id), eq(exercises.userId, userId)));
 	return row ?? null;
 }
 
-export async function createExercise(name: string, muscleGroup?: string | null) {
+export async function createExercise(userId: number, name: string, muscleGroup?: string | null) {
 	const trimmed = name.trim();
 	if (!trimmed) throw new Error('Exercise name is required');
 	const [row] = await db
 		.insert(exercises)
-		.values({ name: trimmed, muscleGroup: muscleGroup?.trim() || null, createdAt: new Date() })
+		.values({ userId, name: trimmed, muscleGroup: muscleGroup?.trim() || null, createdAt: new Date() })
 		.returning();
 	return row;
 }
 
-export async function updateExercise(id: number, name: string, muscleGroup?: string | null) {
+export async function updateExercise(userId: number, id: number, name: string, muscleGroup?: string | null) {
 	await db
 		.update(exercises)
 		.set({ name: name.trim(), muscleGroup: muscleGroup?.trim() || null })
-		.where(eq(exercises.id, id));
+		.where(and(eq(exercises.id, id), eq(exercises.userId, userId)));
 }
 
-export async function deleteExercise(id: number) {
-	await db.delete(exercises).where(eq(exercises.id, id));
+export async function deleteExercise(userId: number, id: number) {
+	await db.delete(exercises).where(and(eq(exercises.id, id), eq(exercises.userId, userId)));
 }

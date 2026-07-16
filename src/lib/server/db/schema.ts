@@ -1,18 +1,34 @@
-import { integer, real, sqliteTable, text, primaryKey, index, unique } from 'drizzle-orm/sqlite-core';
+import { integer, real, sqliteTable, text, primaryKey, index, unique, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 const timestamp = (name: string) =>
 	integer(name, { mode: 'timestamp_ms' }).notNull().default(sql`(unixepoch('subsec') * 1000)`);
 
+export const users = sqliteTable('users', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	username: text('username').notNull(),
+	passwordHash: text('password_hash').notNull(),
+	createdAt: timestamp('created_at')
+}, (t) => [uniqueIndex('users_username_lower_unique').on(sql`lower(${t.username})`)]);
+
+export const sessions = sqliteTable('sessions', {
+	id: text('id').primaryKey(),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	createdAt: timestamp('created_at'),
+	expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull()
+}, (t) => [index('sessions_user_idx').on(t.userId)]);
+
 export const categories = sqliteTable('categories', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
 	name: text('name').notNull(),
 	sortOrder: integer('sort_order').notNull().default(0),
 	createdAt: timestamp('created_at')
-}, (t) => [unique('categories_name_unique').on(t.name)]);
+}, (t) => [unique('categories_user_name_unique').on(t.userId, t.name)]);
 
 export const meals = sqliteTable('meals', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
 	name: text('name').notNull(),
 	brand: text('brand'),
 	servingSize: text('serving_size'),
@@ -25,7 +41,7 @@ export const meals = sqliteTable('meals', {
 	sodium: real('sodium'),
 	createdAt: timestamp('created_at'),
 	updatedAt: timestamp('updated_at')
-}, (t) => [index('meals_name_idx').on(t.name)]);
+}, (t) => [index('meals_user_idx').on(t.userId), index('meals_name_idx').on(t.name)]);
 
 export const mealCategories = sqliteTable('meal_categories', {
 	mealId: integer('meal_id').notNull().references(() => meals.id, { onDelete: 'cascade' }),
@@ -37,27 +53,42 @@ export const mealCategories = sqliteTable('meal_categories', {
 
 export const shoppingListItems = sqliteTable('shopping_list_items', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
 	mealId: integer('meal_id').references(() => meals.id, { onDelete: 'set null' }),
 	name: text('name').notNull(),
 	brand: text('brand'),
 	quantity: integer('quantity').notNull().default(1),
 	checked: integer('checked', { mode: 'boolean' }).notNull().default(false),
 	createdAt: timestamp('created_at')
-}, (t) => [index('shopping_list_meal_idx').on(t.mealId)]);
+}, (t) => [index('shopping_list_user_idx').on(t.userId), index('shopping_list_meal_idx').on(t.mealId)]);
+
+/** Grants sharedWithUserId read/write access to ownerId's shopping list. */
+export const shoppingListShares = sqliteTable('shopping_list_shares', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	ownerId: integer('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	sharedWithUserId: integer('shared_with_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	createdAt: timestamp('created_at')
+}, (t) => [
+	unique('shopping_list_shares_pair_unique').on(t.ownerId, t.sharedWithUserId),
+	index('shopping_list_shares_owner_idx').on(t.ownerId),
+	index('shopping_list_shares_shared_with_idx').on(t.sharedWithUserId)
+]);
 
 export const exercises = sqliteTable('exercises', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
 	name: text('name').notNull(),
 	muscleGroup: text('muscle_group'),
 	createdAt: timestamp('created_at')
-}, (t) => [unique('exercises_name_unique').on(t.name)]);
+}, (t) => [unique('exercises_user_name_unique').on(t.userId, t.name)]);
 
 export const workoutSessions = sqliteTable('workout_sessions', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
 	date: text('date').notNull(),
 	notes: text('notes'),
 	createdAt: timestamp('created_at')
-}, (t) => [index('workout_sessions_date_idx').on(t.date)]);
+}, (t) => [index('workout_sessions_user_idx').on(t.userId), index('workout_sessions_date_idx').on(t.date)]);
 
 export const workoutSets = sqliteTable('workout_sets', {
 	id: integer('id').primaryKey({ autoIncrement: true }),

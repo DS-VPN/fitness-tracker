@@ -1,44 +1,78 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
-import { env } from '$env/dynamic/private';
+import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
+import { promisify } from 'node:util';
+import { eq, and, gt, sql } from 'drizzle-orm';
+import { db } from '$lib/server/db';
+import { users, sessions } from '$lib/server/db/schema';
 
+const scrypt = promisify(scryptCallback);
+const KEY_LENGTH = 64;
 const SESSION_COOKIE = 'session';
-const SESSION_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
+const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 365; // 1 year
 
-function requireEnv(name: 'AUTH_PASSWORD' | 'SESSION_SECRET'): string {
-	const value = env[name];
-	if (!value) throw new Error(`${name} is not set. Set it in your .env file.`);
-	return value;
+export type SessionUser = { id: number; username: string };
+
+export async function hashPassword(password: string): Promise<string> {
+	const salt = randomBytes(16);
+	const derived = (await scrypt(password, salt, KEY_LENGTH)) as Buffer;
+	return `scrypt:${salt.toString('hex')}:${derived.toString('hex')}`;
 }
 
-function safeEqual(a: string, b: string): boolean {
-	const bufA = Buffer.from(a);
-	const bufB = Buffer.from(b);
-	if (bufA.length !== bufB.length) return false;
-	return timingSafeEqual(bufA, bufB);
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
+	const [scheme, saltHex, hashHex] = stored.split(':');
+	if (scheme !== 'scrypt' || !saltHex || !hashHex) return false;
+	const salt = Buffer.from(saltHex, 'hex');
+	const expected = Buffer.from(hashHex, 'hex');
+	const derived = (await scrypt(password, salt, expected.length)) as Buffer;
+	return derived.length === expected.length && timingSafeEqual(derived, expected);
 }
 
-export function verifyPassword(input: string): boolean {
-	return safeEqual(input, requireEnv('AUTH_PASSWORD'));
+export async function createUser(username: string, password: string) {
+	const passwordHash = await hashPassword(password);
+	const [user] = await db.insert(users).values({ username, passwordHash }).returning();
+	return user;
 }
 
-export function sessionToken(): string {
-	return createHmac('sha256', requireEnv('SESSION_SECRET'))
-		.update(requireEnv('AUTH_PASSWORD'))
-		.digest('hex');
+export async function findUserByUsername(username: string): Promise<(SessionUser & { passwordHash: string }) | null> {
+	const [row] = await db
+		.select()
+		.from(users)
+		.where(sql`lower(${users.username}) = lower(${username})`);
+	return row ?? null;
 }
 
-export function isValidSessionToken(token: string | undefined): boolean {
-	if (!token) return false;
-	return safeEqual(token, sessionToken());
+export async function createSession(userId: number): Promise<{ token: string; expiresAt: Date }> {
+	const token = randomBytes(32).toString('hex');
+	const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
+	await db.insert(sessions).values({ id: token, userId, expiresAt });
+	return { token, expiresAt };
 }
 
-export function setSessionCookie(cookies: { set: (name: string, value: string, opts: any) => void }, secure: boolean) {
-	cookies.set(SESSION_COOKIE, sessionToken(), {
+export async function getSessionUser(token: string | undefined): Promise<SessionUser | null> {
+	if (!token) return null;
+	const [row] = await db
+		.select({ id: users.id, username: users.username })
+		.from(sessions)
+		.innerJoin(users, eq(users.id, sessions.userId))
+		.where(and(eq(sessions.id, token), gt(sessions.expiresAt, new Date())));
+	return row ?? null;
+}
+
+export async function deleteSession(token: string) {
+	await db.delete(sessions).where(eq(sessions.id, token));
+}
+
+export function setSessionCookie(
+	cookies: { set: (name: string, value: string, opts: any) => void },
+	token: string,
+	expiresAt: Date,
+	secure: boolean
+) {
+	cookies.set(SESSION_COOKIE, token, {
 		path: '/',
 		httpOnly: true,
 		sameSite: 'lax',
 		secure,
-		maxAge: SESSION_MAX_AGE
+		expires: expiresAt
 	});
 }
 

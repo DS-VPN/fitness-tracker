@@ -1,10 +1,14 @@
 import { db } from '$lib/server/db';
 import { workoutSets, workoutSessions, exercises } from '$lib/server/db/schema';
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { estimatedOneRepMax } from '$lib/utils/oneRepMax';
 
-export async function getExerciseProgress(exerciseId: number) {
-	const exercise = await db.select().from(exercises).where(eq(exercises.id, exerciseId)).then((r) => r[0] ?? null);
+export async function getExerciseProgress(userId: number, exerciseId: number) {
+	const exercise = await db
+		.select()
+		.from(exercises)
+		.where(and(eq(exercises.id, exerciseId), eq(exercises.userId, userId)))
+		.then((r) => r[0] ?? null);
 	if (!exercise) return null;
 
 	const rows = await db
@@ -17,7 +21,7 @@ export async function getExerciseProgress(exerciseId: number) {
 		})
 		.from(workoutSets)
 		.innerJoin(workoutSessions, eq(workoutSessions.id, workoutSets.sessionId))
-		.where(eq(workoutSets.exerciseId, exerciseId))
+		.where(and(eq(workoutSets.exerciseId, exerciseId), eq(workoutSessions.userId, userId)))
 		.orderBy(asc(workoutSessions.date), asc(workoutSets.order));
 
 	const bySession = new Map<

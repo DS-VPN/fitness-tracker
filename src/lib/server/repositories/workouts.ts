@@ -2,7 +2,7 @@ import { db } from '$lib/server/db';
 import { workoutSessions, workoutSets, exercises } from '$lib/server/db/schema';
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
 
-export async function listSessions() {
+export async function listSessions(userId: number) {
 	return db
 		.select({
 			id: workoutSessions.id,
@@ -14,31 +14,35 @@ export async function listSessions() {
 		})
 		.from(workoutSessions)
 		.leftJoin(workoutSets, eq(workoutSets.sessionId, workoutSessions.id))
+		.where(eq(workoutSessions.userId, userId))
 		.groupBy(workoutSessions.id)
 		.orderBy(desc(workoutSessions.date), desc(workoutSessions.createdAt));
 }
 
-export async function createSession(date: string, notes?: string | null) {
+export async function createSession(userId: number, date: string, notes?: string | null) {
 	const [row] = await db
 		.insert(workoutSessions)
-		.values({ date, notes: notes?.trim() || null, createdAt: new Date() })
+		.values({ userId, date, notes: notes?.trim() || null, createdAt: new Date() })
 		.returning();
 	return row;
 }
 
-export async function updateSession(id: number, date: string, notes?: string | null) {
+export async function updateSession(userId: number, id: number, date: string, notes?: string | null) {
 	await db
 		.update(workoutSessions)
 		.set({ date, notes: notes?.trim() || null })
-		.where(eq(workoutSessions.id, id));
+		.where(and(eq(workoutSessions.id, id), eq(workoutSessions.userId, userId)));
 }
 
-export async function deleteSession(id: number) {
-	await db.delete(workoutSessions).where(eq(workoutSessions.id, id));
+export async function deleteSession(userId: number, id: number) {
+	await db.delete(workoutSessions).where(and(eq(workoutSessions.id, id), eq(workoutSessions.userId, userId)));
 }
 
-export async function getSessionWithSets(id: number) {
-	const [session] = await db.select().from(workoutSessions).where(eq(workoutSessions.id, id));
+export async function getSessionWithSets(userId: number, id: number) {
+	const [session] = await db
+		.select()
+		.from(workoutSessions)
+		.where(and(eq(workoutSessions.id, id), eq(workoutSessions.userId, userId)));
 	if (!session) return null;
 
 	const rows = await db
@@ -69,10 +73,23 @@ export async function getSessionWithSets(id: number) {
 }
 
 export async function addSet(
+	userId: number,
 	sessionId: number,
 	exerciseId: number,
 	data: { reps: number; weight: number; rpe?: number | null; notes?: string | null }
 ) {
+	const [session] = await db
+		.select({ id: workoutSessions.id })
+		.from(workoutSessions)
+		.where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)));
+	if (!session) throw new Error('Workout session not found');
+
+	const [exercise] = await db
+		.select({ id: exercises.id })
+		.from(exercises)
+		.where(and(eq(exercises.id, exerciseId), eq(exercises.userId, userId)));
+	if (!exercise) throw new Error('Exercise not found');
+
 	const [{ maxOrder }] = await db
 		.select({ maxOrder: sql<number>`coalesce(max(${workoutSets.order}), -1)`.mapWith(Number) })
 		.from(workoutSets)
@@ -94,23 +111,35 @@ export async function addSet(
 	return row;
 }
 
+async function ownsSet(userId: number, setId: number): Promise<boolean> {
+	const [row] = await db
+		.select({ id: workoutSets.id })
+		.from(workoutSets)
+		.innerJoin(workoutSessions, eq(workoutSessions.id, workoutSets.sessionId))
+		.where(and(eq(workoutSets.id, setId), eq(workoutSessions.userId, userId)));
+	return !!row;
+}
+
 export async function updateSet(
+	userId: number,
 	id: number,
 	data: { reps: number; weight: number; rpe?: number | null; notes?: string | null }
 ) {
+	if (!(await ownsSet(userId, id))) return;
 	await db
 		.update(workoutSets)
 		.set({ reps: data.reps, weight: data.weight, rpe: data.rpe ?? null, notes: data.notes?.trim() || null })
 		.where(eq(workoutSets.id, id));
 }
 
-export async function deleteSet(id: number) {
+export async function deleteSet(userId: number, id: number) {
+	if (!(await ownsSet(userId, id))) return;
 	await db.delete(workoutSets).where(eq(workoutSets.id, id));
 }
 
-/** Sets for a given exercise across all sessions, most recent first — used for repeating last session's numbers. */
-export async function lastSetsForExercise(exerciseId: number, excludeSessionId?: number) {
-	const conditions = [eq(workoutSets.exerciseId, exerciseId)];
+/** Sets for a given exercise across all of the user's sessions, most recent first — used for repeating last session's numbers. */
+export async function lastSetsForExercise(userId: number, exerciseId: number, excludeSessionId?: number) {
+	const conditions = [eq(workoutSets.exerciseId, exerciseId), eq(workoutSessions.userId, userId)];
 	if (excludeSessionId) conditions.push(sql`${workoutSets.sessionId} != ${excludeSessionId}`);
 
 	return db

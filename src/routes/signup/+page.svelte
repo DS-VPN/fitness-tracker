@@ -6,9 +6,10 @@
 	let { form }: { form: ActionData } = $props();
 	let username = $state(form?.username ?? '');
 	let password = $state('');
+	let confirmPassword = $state('');
 </script>
 
-<svelte:head><title>Sign in · Fitness Tracker</title></svelte:head>
+<svelte:head><title>Create account · Fitness Tracker</title></svelte:head>
 
 <div class="min-h-dvh flex flex-col items-center justify-center px-6 bg-[var(--color-bg)]">
 	<div class="w-full max-w-xs">
@@ -18,21 +19,28 @@
 			>
 				F
 			</div>
-			<h1 class="text-2xl text-[var(--color-text)]">Fitness Tracker</h1>
-			<p class="text-sm text-[var(--color-text-muted)] mt-1">Sign in to continue</p>
+			<h1 class="text-2xl text-[var(--color-text)]">Create your account</h1>
+			<p class="text-sm text-[var(--color-text-muted)] mt-1">Your own private meals, list, and workouts</p>
 		</div>
 
 		<form method="POST" class="space-y-4">
-			<TextField label="Username" name="username" bind:value={username} required />
-			<TextField label="Password" name="password" type="password" bind:value={password} required />
+			<TextField
+				label="Username"
+				name="username"
+				bind:value={username}
+				required
+				hint="3-24 characters: letters, numbers, _ or -"
+			/>
+			<TextField label="Password" name="password" type="password" bind:value={password} required hint="At least 8 characters" />
+			<TextField label="Confirm password" name="confirmPassword" type="password" bind:value={confirmPassword} required />
 			{#if form?.error}
 				<p class="text-sm text-[var(--color-danger)]">{form.error}</p>
 			{/if}
-			<Button type="submit" variant="primary" class="w-full" size="lg">Sign in</Button>
+			<Button type="submit" variant="primary" full size="lg">Create account</Button>
 		</form>
 
 		<p class="mt-5 text-center text-sm text-[var(--color-text-muted)]">
-			No account yet? <a href="/signup" class="text-[var(--color-accent)] font-medium">Create one</a>
+			Already have an account? <a href="/login" class="text-[var(--color-accent)] font-medium">Sign in</a>
 		</p>
 	</div>
 </div>
