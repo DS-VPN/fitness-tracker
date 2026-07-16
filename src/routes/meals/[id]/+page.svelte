@@ -5,11 +5,15 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Chip from '$lib/components/Chip.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
+	import IngredientRow from '$lib/components/meals/IngredientRow.svelte';
+	import IngredientPicker from '$lib/components/meals/IngredientPicker.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 	const meal = $derived(data.meal);
 
+	let pickerOpen = $state(false);
 	let added = $state(false);
 	let addedTimeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -18,21 +22,11 @@
 	}
 
 	const macroRows = $derived([
-		{ label: 'Calories', value: meal.calories, unit: 'kcal' },
-		{ label: 'Protein', value: meal.protein, unit: 'g' },
-		{ label: 'Carbs', value: meal.carbs, unit: 'g' },
-		{ label: 'Fat', value: meal.fat, unit: 'g' }
+		{ label: 'Calories', value: meal.totalMacros.calories, unit: 'kcal' },
+		{ label: 'Protein', value: meal.totalMacros.protein, unit: 'g' },
+		{ label: 'Carbs', value: meal.totalMacros.carbs, unit: 'g' },
+		{ label: 'Fat', value: meal.totalMacros.fat, unit: 'g' }
 	]);
-
-	const extraRows = $derived(
-		(
-			[
-				meal.fiber != null ? { label: 'Fiber', value: meal.fiber, unit: 'g' } : null,
-				meal.sugar != null ? { label: 'Sugar', value: meal.sugar, unit: 'g' } : null,
-				meal.sodium != null ? { label: 'Sodium', value: meal.sodium, unit: 'mg' } : null
-			] as ({ label: string; value: number; unit: string } | null)[]
-		).filter((r): r is { label: string; value: number; unit: string } => r !== null)
-	);
 </script>
 
 <svelte:head><title>{meal.name} · Fitness Tracker</title></svelte:head>
@@ -48,14 +42,7 @@
 
 <div class="mx-auto max-w-md space-y-4 px-4 pb-6">
 	<Card>
-		{#if meal.brand}
-			<p class="text-sm text-[var(--color-text-muted)]">{meal.brand}</p>
-		{/if}
-		{#if meal.servingSize}
-			<p class="mt-0.5 text-xs text-[var(--color-text-muted)]">Per {meal.servingSize}</p>
-		{/if}
-
-		<div class="mt-3 grid grid-cols-2 gap-3">
+		<div class="grid grid-cols-2 gap-3">
 			{#each macroRows as row (row.label)}
 				<div class="rounded-[var(--radius-md)] bg-[var(--color-surface-alt)] px-3 py-2">
 					<p class="text-xs text-[var(--color-text-muted)]">{row.label}</p>
@@ -66,16 +53,6 @@
 			{/each}
 		</div>
 
-		{#if extraRows.length}
-			<div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-[var(--color-border)] pt-3">
-				{#each extraRows as row (row.label)}
-					<p class="text-sm text-[var(--color-text-muted)]">
-						{row.label}: <span class="font-medium text-[var(--color-text)]">{fmt(row.value)}{row.unit}</span>
-					</p>
-				{/each}
-			</div>
-		{/if}
-
 		{#if meal.categories.length}
 			<div class="mt-3 flex flex-wrap gap-1.5 border-t border-[var(--color-border)] pt-3">
 				{#each meal.categories as c (c.id)}
@@ -84,6 +61,29 @@
 			</div>
 		{/if}
 	</Card>
+
+	<div>
+		<h2 class="mb-2 px-1 text-sm font-medium text-[var(--color-text-muted)]">Ingredients</h2>
+		{#if meal.ingredients.length === 0}
+			<EmptyState
+				icon="meals"
+				title="No ingredients yet"
+				description="Add a product or another meal below to build this recipe."
+			/>
+		{:else}
+			<Card>
+				<div class="divide-y divide-[var(--color-border)]">
+					{#each meal.ingredients as ingredient (ingredient.id)}
+						<IngredientRow {ingredient} />
+					{/each}
+				</div>
+			</Card>
+		{/if}
+		<Button variant="secondary" full size="lg" class="mt-3 w-full" onclick={() => (pickerOpen = true)}>
+			<Icon name="plus" size={18} />
+			Add ingredient
+		</Button>
+	</div>
 
 	<div>
 		<form
@@ -102,7 +102,7 @@
 		>
 			<Button type="submit" variant="primary" size="lg" full class="w-full">
 				<Icon name="cart" size={18} />
-				Add to shopping list
+				Add meal to shopping list
 			</Button>
 		</form>
 		{#if added}
@@ -125,3 +125,5 @@
 		</Button>
 	</form>
 </div>
+
+<IngredientPicker bind:open={pickerOpen} products={data.products} subMeals={data.subMeals} />

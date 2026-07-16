@@ -1,4 +1,4 @@
-import { integer, real, sqliteTable, text, primaryKey, index, unique, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { integer, real, sqliteTable, text, primaryKey, index, unique, uniqueIndex, check } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 const timestamp = (name: string) =>
@@ -49,6 +49,42 @@ export const mealCategories = sqliteTable('meal_categories', {
 }, (t) => [
 	primaryKey({ columns: [t.mealId, t.categoryId] }),
 	index('meal_categories_category_idx').on(t.categoryId)
+]);
+
+export const products = sqliteTable('products', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	name: text('name').notNull(),
+	brand: text('brand'),
+	servingSize: text('serving_size'),
+	calories: real('calories').notNull().default(0),
+	protein: real('protein').notNull().default(0),
+	carbs: real('carbs').notNull().default(0),
+	fat: real('fat').notNull().default(0),
+	fiber: real('fiber'),
+	sugar: real('sugar'),
+	sodium: real('sodium'),
+	createdAt: timestamp('created_at'),
+	updatedAt: timestamp('updated_at')
+}, (t) => [index('products_user_idx').on(t.userId), index('products_name_idx').on(t.name)]);
+
+/** An ingredient in a meal's recipe: exactly one of productId/subMealId is set (enforced below and in the repo layer). */
+export const mealIngredients = sqliteTable('meal_ingredients', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	mealId: integer('meal_id').notNull().references(() => meals.id, { onDelete: 'cascade' }),
+	productId: integer('product_id').references(() => products.id, { onDelete: 'cascade' }),
+	subMealId: integer('sub_meal_id').references(() => meals.id, { onDelete: 'cascade' }),
+	quantity: real('quantity').notNull().default(1),
+	sortOrder: integer('sort_order').notNull().default(0),
+	createdAt: timestamp('created_at')
+}, (t) => [
+	index('meal_ingredients_meal_idx').on(t.mealId),
+	index('meal_ingredients_product_idx').on(t.productId),
+	index('meal_ingredients_submeal_idx').on(t.subMealId),
+	check(
+		'meal_ingredients_exactly_one_ref',
+		sql`(${t.productId} is not null and ${t.subMealId} is null) or (${t.productId} is null and ${t.subMealId} is not null)`
+	)
 ]);
 
 export const shoppingListItems = sqliteTable('shopping_list_items', {

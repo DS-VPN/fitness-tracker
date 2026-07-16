@@ -5,6 +5,7 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import Card from '$lib/components/Card.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import Chip from '$lib/components/Chip.svelte';
 	import TextField from '$lib/components/TextField.svelte';
 	import ShoppingItemRow from '$lib/components/shopping/ShoppingItemRow.svelte';
@@ -34,6 +35,10 @@
 <PageHeader title={data.isOwner ? 'Shopping List' : `${data.ownerUsername}'s list`}>
 	{#snippet actions()}
 		{#if data.isOwner}
+			<Button href="/shopping-list/products" variant="ghost" size="icon">
+				<Icon name="list" size={20} />
+				<span class="sr-only">Manage products</span>
+			</Button>
 			<Button variant="ghost" size="md" onclick={() => (shareOpen = true)}>Share</Button>
 		{:else}
 			<form method="POST" action="?/leaveList" use:enhance={confirmSubmit('Leave this shared list?')}>

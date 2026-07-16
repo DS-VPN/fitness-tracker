@@ -2,14 +2,16 @@ import { fail } from '@sveltejs/kit';
 import { recentMeals } from '$lib/server/repositories/meals';
 import { listShoppingList, addMealToList } from '$lib/server/repositories/shoppingList';
 import { listSessions } from '$lib/server/repositories/workouts';
+import { recentExerciseProgress } from '$lib/server/repositories/progress';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const userId = locals.user!.id;
-	const [meals, shoppingList, sessions] = await Promise.all([
+	const [meals, shoppingList, sessions, exerciseProgress] = await Promise.all([
 		recentMeals(userId, 6),
 		listShoppingList(userId),
-		listSessions(userId)
+		listSessions(userId),
+		recentExerciseProgress(userId, 3)
 	]);
 
 	const shoppingCount = [...shoppingList.fromMeals, ...shoppingList.manual].filter((i) => !i.checked).length;
@@ -18,7 +20,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		username: locals.user!.username,
 		recentMeals: meals,
 		shoppingCount,
-		lastSession: sessions[0] ?? null
+		lastSession: sessions[0] ?? null,
+		exerciseProgress
 	};
 };
 

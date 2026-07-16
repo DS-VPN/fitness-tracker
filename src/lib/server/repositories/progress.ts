@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { workoutSets, workoutSessions, exercises } from '$lib/server/db/schema';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { estimatedOneRepMax } from '$lib/utils/oneRepMax';
 
 export async function getExerciseProgress(userId: number, exerciseId: number) {
@@ -59,4 +59,23 @@ export async function getExerciseProgress(userId: number, exerciseId: number) {
 		prs: { heaviestWeight, mostReps, estimatedOneRm },
 		hasData: rows.length > 0
 	};
+}
+
+/** The user's most recently trained distinct exercises, each with its full progress history — for a Home screen summary. */
+export async function recentExerciseProgress(userId: number, limit = 3) {
+	const recent = await db
+		.select({ exerciseId: workoutSets.exerciseId, lastDate: sql<string>`max(${workoutSessions.date})` })
+		.from(workoutSets)
+		.innerJoin(workoutSessions, eq(workoutSessions.id, workoutSets.sessionId))
+		.where(eq(workoutSessions.userId, userId))
+		.groupBy(workoutSets.exerciseId)
+		.orderBy(desc(sql`max(${workoutSessions.date})`))
+		.limit(limit);
+
+	const results = [];
+	for (const row of recent) {
+		const progress = await getExerciseProgress(userId, row.exerciseId);
+		if (progress) results.push(progress);
+	}
+	return results;
 }

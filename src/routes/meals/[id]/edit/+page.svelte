@@ -16,15 +16,6 @@
 			categories={data.categories}
 			initial={{
 				name: data.meal.name,
-				brand: data.meal.brand,
-				servingSize: data.meal.servingSize,
-				calories: data.meal.calories,
-				protein: data.meal.protein,
-				carbs: data.meal.carbs,
-				fat: data.meal.fat,
-				fiber: data.meal.fiber,
-				sugar: data.meal.sugar,
-				sodium: data.meal.sodium,
 				categoryIds: data.meal.categories.map((c) => c.id)
 			}}
 			submitLabel="Save changes"

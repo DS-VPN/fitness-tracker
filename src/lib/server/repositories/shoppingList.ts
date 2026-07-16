@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db';
-import { shoppingListItems, meals, users, shoppingListShares } from '$lib/server/db/schema';
+import { shoppingListItems, meals, users, shoppingListShares, products } from '$lib/server/db/schema';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 
 export async function hasListAccess(actingUserId: number, ownerId: number): Promise<boolean> {
@@ -55,6 +55,43 @@ export async function addMealToList(userId: number, mealId: number) {
 		quantity: 1,
 		checked: false
 	});
+}
+
+/** Quick-add a product straight to the user's own list — merges into an existing manual item with the same name, like addManualItem does. */
+export async function addProductToList(userId: number, productId: number, quantity: number = 1) {
+	const [product] = await db
+		.select()
+		.from(products)
+		.where(and(eq(products.id, productId), eq(products.userId, userId)));
+	if (!product) throw new Error('Product not found');
+
+	const [existing] = await db
+		.select()
+		.from(shoppingListItems)
+		.where(
+			and(
+				eq(shoppingListItems.userId, userId),
+				isNull(shoppingListItems.mealId),
+				sql`lower(${shoppingListItems.name}) = lower(${product.name})`
+			)
+		);
+
+	if (existing) {
+		await db
+			.update(shoppingListItems)
+			.set({ quantity: existing.quantity + quantity, checked: false })
+			.where(eq(shoppingListItems.id, existing.id));
+		return;
+	}
+
+	await db.insert(shoppingListItems).values({ userId, name: product.name, brand: product.brand, quantity, checked: false });
+}
+
+/** Bulk quick-add — used for "add all of this sub-meal's products at once". */
+export async function addProductsToList(userId: number, items: { productId: number; quantity: number }[]) {
+	for (const item of items) {
+		await addProductToList(userId, item.productId, item.quantity);
+	}
 }
 
 export async function addManualItem(actingUserId: number, ownerId: number, name: string, brand?: string) {

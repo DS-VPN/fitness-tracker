@@ -1,17 +1,17 @@
 import { db } from '$lib/server/db';
-import { meals, exercises, users } from '$lib/server/db/schema';
+import { products, exercises, users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import { presetMeals, presetExercises } from '$lib/server/presetData';
+import { presetProducts, presetExercises } from '$lib/server/presetData';
 
-/** Inserts any preset meals/exercises userId doesn't already have (matched by name). Safe to call repeatedly. */
+/** Inserts any preset products/exercises userId doesn't already have (matched by name). Safe to call repeatedly. */
 export async function seedPresetsForUser(userId: number) {
-	const existingMealNames = new Set(
-		(await db.select({ name: meals.name }).from(meals).where(eq(meals.userId, userId))).map((m) => m.name)
+	const existingProductNames = new Set(
+		(await db.select({ name: products.name }).from(products).where(eq(products.userId, userId))).map((p) => p.name)
 	);
-	const mealsToInsert = presetMeals
-		.filter((m) => !existingMealNames.has(m.name))
-		.map((m) => ({ ...m, userId, createdAt: new Date(), updatedAt: new Date() }));
-	if (mealsToInsert.length) await db.insert(meals).values(mealsToInsert);
+	const productsToInsert = presetProducts
+		.filter((p) => !existingProductNames.has(p.name))
+		.map((p) => ({ ...p, userId, createdAt: new Date(), updatedAt: new Date() }));
+	if (productsToInsert.length) await db.insert(products).values(productsToInsert);
 
 	const existingExerciseNames = new Set(
 		(await db.select({ name: exercises.name }).from(exercises).where(eq(exercises.userId, userId))).map(

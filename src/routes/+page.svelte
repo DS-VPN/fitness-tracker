@@ -28,6 +28,19 @@
 		const date = new Date(`${d}T00:00:00`);
 		return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 	}
+
+	function fmtWeight(n: number) {
+		return Number.isInteger(n) ? n : Math.round(n * 10) / 10;
+	}
+
+	function trend(history: { topWeight: number }[]) {
+		const window = history.slice(-4);
+		return {
+			first: window[0]?.topWeight ?? 0,
+			last: window[window.length - 1]?.topWeight ?? 0,
+			sessionsCount: window.length
+		};
+	}
 </script>
 
 <svelte:head><title>Fitness Tracker</title></svelte:head>
@@ -68,7 +81,9 @@
 			<Card href={`/workouts/${data.lastSession.id}`} class="flex flex-col gap-1">
 				<Icon name="chart" size={20} class="text-[var(--color-accent)]" />
 				<span class="text-sm font-medium text-[var(--color-text)]">{formatDate(data.lastSession.date)}</span>
-				<span class="text-xs text-[var(--color-text-muted)]">Last workout</span>
+				<span class="text-xs text-[var(--color-text-muted)]">
+					{data.lastSession.exerciseCount} exercise{data.lastSession.exerciseCount === 1 ? '' : 's'} &middot; {data.lastSession.setCount} set{data.lastSession.setCount === 1 ? '' : 's'}
+				</span>
 			</Card>
 		{:else}
 			<Card href="/workouts" class="flex flex-col gap-1 justify-center">
@@ -76,6 +91,27 @@
 			</Card>
 		{/if}
 	</div>
+
+	{#if data.exerciseProgress.length > 0}
+		<div>
+			<h2 class="mb-2 px-1 text-sm font-medium text-[var(--color-text-muted)]">Exercise progress</h2>
+			<div class="space-y-2">
+				{#each data.exerciseProgress as progress (progress.exercise.id)}
+					{@const t = trend(progress.history)}
+					<Card href={`/exercises/${progress.exercise.id}`} class="flex items-center justify-between gap-2">
+						<span class="font-medium text-[var(--color-text)] truncate">{progress.exercise.name}</span>
+						<span class="text-sm text-[var(--color-text-muted)] shrink-0">
+							{#if t.sessionsCount > 1}
+								{fmtWeight(t.first)}kg &rarr; {fmtWeight(t.last)}kg &middot; {t.sessionsCount} sessions
+							{:else}
+								{fmtWeight(t.last)}kg
+							{/if}
+						</span>
+					</Card>
+				{/each}
+			</div>
+		</div>
+	{/if}
 
 	<div>
 		<div class="flex items-center justify-between mb-2 px-1">
@@ -94,7 +130,12 @@
 					<Card class="flex items-center gap-3">
 						<a href={`/meals/${meal.id}`} class="flex-1 min-w-0">
 							<p class="font-medium text-[var(--color-text)] truncate">{meal.name}</p>
-							<MacroBadge calories={meal.calories} protein={meal.protein} carbs={meal.carbs} fat={meal.fat} />
+							<MacroBadge
+								calories={meal.totalMacros.calories}
+								protein={meal.totalMacros.protein}
+								carbs={meal.totalMacros.carbs}
+								fat={meal.totalMacros.fat}
+							/>
 						</a>
 						<form
 							method="POST"

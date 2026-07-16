@@ -1,19 +1,47 @@
 import { db } from '$lib/server/db';
-import { meals, categories, mealCategories } from '$lib/server/db/schema';
-import { and, eq, inArray, like, or, asc, desc } from 'drizzle-orm';
+import { meals, categories, mealCategories, mealIngredients, products } from '$lib/server/db/schema';
+import { createProduct, type ProductInput } from '$lib/server/repositories/products';
+import { and, eq, inArray, like, asc, desc, sql } from 'drizzle-orm';
 
-export type MealInput = {
+export type Macros = { calories: number; protein: number; carbs: number; fat: number };
+
+export type MealIngredientView = {
+	id: number;
+	quantity: number;
+	type: 'product' | 'meal';
+	refId: number;
 	name: string;
 	brand?: string | null;
 	servingSize?: string | null;
-	calories: number;
-	protein: number;
-	carbs: number;
-	fat: number;
-	fiber?: number | null;
-	sugar?: number | null;
-	sodium?: number | null;
+	unitMacros: Macros;
+	totalMacros: Macros;
 };
+
+function scaleMacros(macros: Macros, quantity: number): Macros {
+	return {
+		calories: macros.calories * quantity,
+		protein: macros.protein * quantity,
+		carbs: macros.carbs * quantity,
+		fat: macros.fat * quantity
+	};
+}
+
+function sumMacros(list: Macros[]): Macros {
+	return list.reduce(
+		(acc, m) => ({
+			calories: acc.calories + m.calories,
+			protein: acc.protein + m.protein,
+			carbs: acc.carbs + m.carbs,
+			fat: acc.fat + m.fat
+		}),
+		{ calories: 0, protein: 0, carbs: 0, fat: 0 }
+	);
+}
+
+function normalizeQuantity(quantity: number): number {
+	if (!Number.isFinite(quantity) || quantity <= 0) return 1;
+	return Math.round(quantity * 100) / 100;
+}
 
 async function attachCategories<T extends { id: number }>(rows: T[]) {
 	if (rows.length === 0) return rows.map((r) => ({ ...r, categories: [] as { id: number; name: string }[] }));
@@ -45,6 +73,35 @@ async function ownedCategoryIds(userId: number, categoryIds: number[]): Promise<
 	return rows.map((r) => r.id);
 }
 
+async function assertMealOwned(userId: number, mealId: number) {
+	const [row] = await db.select({ id: meals.id }).from(meals).where(and(eq(meals.id, mealId), eq(meals.userId, userId)));
+	if (!row) throw new Error('Meal not found');
+}
+
+/** Sums a meal's ingredients (products directly, sub-meals recursively — bounded to depth 1 by construction). */
+export async function computeMealMacros(mealId: number): Promise<Macros> {
+	const ingredients = await db.select().from(mealIngredients).where(eq(mealIngredients.mealId, mealId));
+	if (ingredients.length === 0) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
+
+	const productIds = ingredients.filter((i) => i.productId != null).map((i) => i.productId!);
+	const productRows = productIds.length
+		? await db.select().from(products).where(inArray(products.id, productIds))
+		: [];
+	const productById = new Map(productRows.map((p) => [p.id, p]));
+
+	const totals: Macros[] = [];
+	for (const ing of ingredients) {
+		if (ing.productId != null) {
+			const product = productById.get(ing.productId);
+			if (product) totals.push(scaleMacros(product, ing.quantity));
+		} else if (ing.subMealId != null) {
+			const subTotal = await computeMealMacros(ing.subMealId);
+			totals.push(scaleMacros(subTotal, ing.quantity));
+		}
+	}
+	return sumMacros(totals);
+}
+
 export async function listMeals(userId: number, opts: { search?: string; categoryId?: number } = {}) {
 	const { search, categoryId } = opts;
 
@@ -62,7 +119,7 @@ export async function listMeals(userId: number, opts: { search?: string; categor
 	const conditions = [eq(meals.userId, userId)];
 	if (search?.trim()) {
 		const term = `%${search.trim()}%`;
-		conditions.push(or(like(meals.name, term), like(meals.brand, term))!);
+		conditions.push(like(meals.name, term));
 	}
 	if (mealIdFilter) conditions.push(inArray(meals.id, mealIdFilter));
 
@@ -72,7 +129,8 @@ export async function listMeals(userId: number, opts: { search?: string; categor
 		.where(and(...conditions))
 		.orderBy(asc(meals.name));
 
-	return attachCategories(rows);
+	const withCategories = await attachCategories(rows);
+	return Promise.all(withCategories.map(async (m) => ({ ...m, totalMacros: await computeMealMacros(m.id) })));
 }
 
 export async function recentMeals(userId: number, limit: number) {
@@ -82,7 +140,8 @@ export async function recentMeals(userId: number, limit: number) {
 		.where(eq(meals.userId, userId))
 		.orderBy(desc(meals.createdAt))
 		.limit(limit);
-	return attachCategories(rows);
+	const withCategories = await attachCategories(rows);
+	return Promise.all(withCategories.map(async (m) => ({ ...m, totalMacros: await computeMealMacros(m.id) })));
 }
 
 export async function getMeal(userId: number, id: number) {
@@ -92,14 +151,68 @@ export async function getMeal(userId: number, id: number) {
 		.where(and(eq(meals.id, id), eq(meals.userId, userId)));
 	if (!meal) return null;
 	const [withCategories] = await attachCategories([meal]);
-	return withCategories;
+
+	const ingredientRows = await db
+		.select()
+		.from(mealIngredients)
+		.where(eq(mealIngredients.mealId, id))
+		.orderBy(asc(mealIngredients.sortOrder), asc(mealIngredients.id));
+
+	const productIds = ingredientRows.filter((i) => i.productId != null).map((i) => i.productId!);
+	const subMealIds = ingredientRows.filter((i) => i.subMealId != null).map((i) => i.subMealId!);
+
+	const [productRows, subMealRows] = await Promise.all([
+		productIds.length ? db.select().from(products).where(inArray(products.id, productIds)) : Promise.resolve([]),
+		subMealIds.length ? db.select().from(meals).where(inArray(meals.id, subMealIds)) : Promise.resolve([])
+	]);
+	const productById = new Map(productRows.map((p) => [p.id, p]));
+	const subMealById = new Map(subMealRows.map((m) => [m.id, m]));
+
+	const ingredients: MealIngredientView[] = [];
+	for (const ing of ingredientRows) {
+		if (ing.productId != null) {
+			const product = productById.get(ing.productId);
+			if (!product) continue;
+			const unitMacros: Macros = product;
+			ingredients.push({
+				id: ing.id,
+				quantity: ing.quantity,
+				type: 'product',
+				refId: product.id,
+				name: product.name,
+				brand: product.brand,
+				servingSize: product.servingSize,
+				unitMacros,
+				totalMacros: scaleMacros(unitMacros, ing.quantity)
+			});
+		} else if (ing.subMealId != null) {
+			const subMeal = subMealById.get(ing.subMealId);
+			if (!subMeal) continue;
+			const unitMacros = await computeMealMacros(subMeal.id);
+			ingredients.push({
+				id: ing.id,
+				quantity: ing.quantity,
+				type: 'meal',
+				refId: subMeal.id,
+				name: subMeal.name,
+				unitMacros,
+				totalMacros: scaleMacros(unitMacros, ing.quantity)
+			});
+		}
+	}
+
+	const totalMacros = sumMacros(ingredients.map((i) => i.totalMacros));
+
+	return { ...withCategories, ingredients, totalMacros };
 }
 
-export async function createMeal(userId: number, data: MealInput, categoryIds: number[]) {
+export async function createMeal(userId: number, name: string, categoryIds: number[]) {
+	const trimmed = name.trim();
+	if (!trimmed) throw new Error('Name is required');
 	const now = new Date();
 	const [row] = await db
 		.insert(meals)
-		.values({ ...data, userId, createdAt: now, updatedAt: now })
+		.values({ name: trimmed, userId, createdAt: now, updatedAt: now })
 		.returning();
 
 	const validCategoryIds = await ownedCategoryIds(userId, categoryIds);
@@ -110,17 +223,12 @@ export async function createMeal(userId: number, data: MealInput, categoryIds: n
 	return row;
 }
 
-export async function updateMeal(userId: number, id: number, data: MealInput, categoryIds: number[]) {
-	const [owned] = await db
-		.select({ id: meals.id })
-		.from(meals)
-		.where(and(eq(meals.id, id), eq(meals.userId, userId)));
-	if (!owned) return;
+export async function updateMealDetails(userId: number, id: number, name: string, categoryIds: number[]) {
+	const trimmed = name.trim();
+	if (!trimmed) throw new Error('Name is required');
+	await assertMealOwned(userId, id);
 
-	await db
-		.update(meals)
-		.set({ ...data, updatedAt: new Date() })
-		.where(eq(meals.id, id));
+	await db.update(meals).set({ name: trimmed, updatedAt: new Date() }).where(eq(meals.id, id));
 
 	await db.delete(mealCategories).where(eq(mealCategories.mealId, id));
 	const validCategoryIds = await ownedCategoryIds(userId, categoryIds);
@@ -131,4 +239,115 @@ export async function updateMeal(userId: number, id: number, data: MealInput, ca
 
 export async function deleteMeal(userId: number, id: number) {
 	await db.delete(meals).where(and(eq(meals.id, id), eq(meals.userId, userId)));
+}
+
+export async function addProductIngredient(userId: number, mealId: number, productId: number, quantity: number) {
+	await assertMealOwned(userId, mealId);
+	const [product] = await db
+		.select({ id: products.id })
+		.from(products)
+		.where(and(eq(products.id, productId), eq(products.userId, userId)));
+	if (!product) throw new Error('Product not found');
+
+	const [{ maxOrder }] = await db
+		.select({ maxOrder: sql<number>`coalesce(max(${mealIngredients.sortOrder}), -1)`.mapWith(Number) })
+		.from(mealIngredients)
+		.where(eq(mealIngredients.mealId, mealId));
+
+	const [row] = await db
+		.insert(mealIngredients)
+		.values({ mealId, productId, quantity: normalizeQuantity(quantity), sortOrder: maxOrder + 1, createdAt: new Date() })
+		.returning();
+	return row;
+}
+
+/** Adds subMealId as an ingredient of mealId. Enforces the depth-1 nesting rule both ways: subMealId must not
+ *  itself contain a sub-meal, AND mealId must not already be used as a sub-meal elsewhere (otherwise a meal that's
+ *  already someone else's "flat" sub-meal could retroactively gain a sub-meal of its own, making that reference 2 deep). */
+export async function addSubMealIngredient(userId: number, mealId: number, subMealId: number, quantity: number) {
+	await assertMealOwned(userId, mealId);
+	if (subMealId === mealId) throw new Error('A meal cannot include itself');
+
+	const [subMeal] = await db
+		.select({ id: meals.id })
+		.from(meals)
+		.where(and(eq(meals.id, subMealId), eq(meals.userId, userId)));
+	if (!subMeal) throw new Error('Meal not found');
+
+	const [existingSubIngredient] = await db
+		.select({ id: mealIngredients.id })
+		.from(mealIngredients)
+		.where(and(eq(mealIngredients.mealId, subMealId), sql`${mealIngredients.subMealId} is not null`));
+	if (existingSubIngredient) {
+		throw new Error("That meal already contains a sub-meal, so it can't be nested further");
+	}
+
+	const [usedAsSubMealElsewhere] = await db
+		.select({ id: mealIngredients.id })
+		.from(mealIngredients)
+		.where(eq(mealIngredients.subMealId, mealId));
+	if (usedAsSubMealElsewhere) {
+		throw new Error("This meal is already used as a sub-meal elsewhere, so it can't contain a sub-meal itself");
+	}
+
+	const [{ maxOrder }] = await db
+		.select({ maxOrder: sql<number>`coalesce(max(${mealIngredients.sortOrder}), -1)`.mapWith(Number) })
+		.from(mealIngredients)
+		.where(eq(mealIngredients.mealId, mealId));
+
+	const [row] = await db
+		.insert(mealIngredients)
+		.values({ mealId, subMealId, quantity: normalizeQuantity(quantity), sortOrder: maxOrder + 1, createdAt: new Date() })
+		.returning();
+	return row;
+}
+
+/** Creates a brand-new product and attaches it as an ingredient in one step (the "create product inline" flow). */
+export async function createProductAndAddIngredient(
+	userId: number,
+	mealId: number,
+	data: ProductInput,
+	quantity: number
+) {
+	await assertMealOwned(userId, mealId);
+	const product = await createProduct(userId, data);
+	return addProductIngredient(userId, mealId, product.id, quantity);
+}
+
+export async function updateIngredientQuantity(userId: number, mealId: number, ingredientId: number, quantity: number) {
+	await assertMealOwned(userId, mealId);
+	await db
+		.update(mealIngredients)
+		.set({ quantity: normalizeQuantity(quantity) })
+		.where(and(eq(mealIngredients.id, ingredientId), eq(mealIngredients.mealId, mealId)));
+}
+
+export async function removeIngredient(userId: number, mealId: number, ingredientId: number) {
+	await assertMealOwned(userId, mealId);
+	await db.delete(mealIngredients).where(and(eq(mealIngredients.id, ingredientId), eq(mealIngredients.mealId, mealId)));
+}
+
+/** A meal's direct product ingredients as a flat {productId, quantity} list — sub-meals never contain further
+ *  sub-meals (depth-1 rule), so this is always complete without needing recursion. Used for the bulk
+ *  "add this sub-meal's products to shopping" quick-add. */
+export async function flatProductIngredients(mealId: number): Promise<{ productId: number; quantity: number }[]> {
+	const rows = await db.select().from(mealIngredients).where(eq(mealIngredients.mealId, mealId));
+	return rows.filter((r) => r.productId != null).map((r) => ({ productId: r.productId!, quantity: r.quantity }));
+}
+
+/** Candidates for the "add sub-meal" picker: the user's meals that don't themselves contain a sub-meal (depth-1 rule), excluding the meal being built. */
+export async function eligibleSubMeals(userId: number, excludeMealId: number) {
+	const subMealParents = await db
+		.select({ mealId: mealIngredients.mealId })
+		.from(mealIngredients)
+		.where(sql`${mealIngredients.subMealId} is not null`);
+	const idsWithSubMeals = new Set(subMealParents.map((r) => r.mealId));
+
+	const rows = await db
+		.select({ id: meals.id, name: meals.name })
+		.from(meals)
+		.where(eq(meals.userId, userId))
+		.orderBy(asc(meals.name));
+
+	return rows.filter((m) => m.id !== excludeMealId && !idsWithSubMeals.has(m.id));
 }

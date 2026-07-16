@@ -134,10 +134,10 @@
 									<p class="truncate text-xs text-[var(--color-text-muted)]">{meal.brand}</p>
 								{/if}
 								<MacroBadge
-									calories={meal.calories}
-									protein={meal.protein}
-									carbs={meal.carbs}
-									fat={meal.fat}
+									calories={meal.totalMacros.calories}
+									protein={meal.totalMacros.protein}
+									carbs={meal.totalMacros.carbs}
+									fat={meal.totalMacros.fat}
 									class="mt-1"
 								/>
 							</Card>

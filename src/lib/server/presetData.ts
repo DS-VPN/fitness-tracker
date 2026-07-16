@@ -1,8 +1,8 @@
 // Starter data seeded into every account (see presets.ts) so new users don't start with empty
-// meal/exercise lists. Everything here is a normal, editable row once seeded — nothing about
+// product/exercise lists. Everything here is a normal, editable row once seeded — nothing about
 // these presets is special or protected.
 
-export type PresetMeal = {
+export type PresetProduct = {
 	name: string;
 	brand?: string;
 	servingSize?: string;
@@ -19,7 +19,7 @@ export type PresetExercise = {
 
 // Common Meny.no staples. Macros are typical values for each product's usual retail form (not
 // scraped from Meny.no directly) — adjust the seeded entry if a specific package differs.
-export const presetMeals: PresetMeal[] = [
+export const presetProducts: PresetProduct[] = [
 	{ name: 'Lettmelk', brand: 'Tine', servingSize: '100 ml', calories: 42, protein: 3.4, carbs: 4.7, fat: 1.2 },
 	{ name: 'Helmelk', brand: 'Tine', servingSize: '100 ml', calories: 64, protein: 3.4, carbs: 4.5, fat: 3.5 },
 	{ name: 'Skummet melk', brand: 'Tine', servingSize: '100 ml', calories: 35, protein: 3.5, carbs: 5.0, fat: 0.1 },
