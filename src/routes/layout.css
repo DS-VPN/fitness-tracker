@@ -1,1 +1,120 @@
 @import 'tailwindcss';
+
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/fraunces/500.css';
+@import '@fontsource/fraunces/600.css';
+
+:root {
+	/* Palette — warm beige/neutral, terracotta accent */
+	--color-bg: #faf6f0;
+	--color-surface: #fffdfa;
+	--color-surface-alt: #f2e9dc;
+	--color-border: #e7dcc9;
+	--color-text: #2b241d;
+	--color-text-muted: #7d7266;
+	--color-accent: #c4602c;
+	--color-accent-hover: #a94e22;
+	--color-accent-soft: #f3ded0;
+	--color-danger: #b3432d;
+	--color-danger-soft: #f4dfd8;
+	--color-success: #4b7a51;
+	--color-success-soft: #e1ebe0;
+
+	/* Radius */
+	--radius-sm: 6px;
+	--radius-md: 10px;
+	--radius-lg: 16px;
+
+	/* Shadow */
+	--shadow-soft: 0 1px 2px rgba(43, 36, 29, 0.04), 0 4px 12px rgba(43, 36, 29, 0.06);
+
+	color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--color-bg: #201a15;
+		--color-surface: #2a231c;
+		--color-surface-alt: #332a21;
+		--color-border: #453a2e;
+		--color-text: #f2ece1;
+		--color-text-muted: #b3a692;
+		--color-accent: #e07a44;
+		--color-accent-hover: #ee9463;
+		--color-accent-soft: #4a3020;
+		--color-danger: #e0725a;
+		--color-danger-soft: #4a2a22;
+		--color-success: #7fb187;
+		--color-success-soft: #263626;
+
+		color-scheme: dark;
+	}
+}
+
+@theme {
+	--font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+	--font-serif: 'Fraunces', ui-serif, Georgia, serif;
+
+	--color-bg: var(--color-bg);
+	--color-surface: var(--color-surface);
+	--color-surface-alt: var(--color-surface-alt);
+	--color-border: var(--color-border);
+	--color-text: var(--color-text);
+	--color-text-muted: var(--color-text-muted);
+	--color-accent: var(--color-accent);
+	--color-accent-hover: var(--color-accent-hover);
+	--color-accent-soft: var(--color-accent-soft);
+	--color-danger: var(--color-danger);
+	--color-danger-soft: var(--color-danger-soft);
+	--color-success: var(--color-success);
+	--color-success-soft: var(--color-success-soft);
+
+	--radius-sm: var(--radius-sm);
+	--radius-md: var(--radius-md);
+	--radius-lg: var(--radius-lg);
+}
+
+html,
+body {
+	height: 100%;
+}
+
+body {
+	background-color: var(--color-bg);
+	color: var(--color-text);
+	font-family: var(--font-sans);
+	-webkit-font-smoothing: antialiased;
+	overscroll-behavior-y: none;
+}
+
+h1,
+h2,
+h3 {
+	font-family: var(--font-serif);
+	font-weight: 600;
+	letter-spacing: -0.01em;
+}
+
+::selection {
+	background: var(--color-accent-soft);
+}
+
+input,
+select,
+textarea,
+button {
+	font-family: inherit;
+}
+
+/* Hide number input spinners so custom stepper controls own the UI */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+input[type='number'] {
+	appearance: textfield;
+}
