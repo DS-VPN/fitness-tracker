@@ -99,7 +99,9 @@
 				{#each data.exerciseProgress as progress (progress.exercise.id)}
 					{@const t = trend(progress.history)}
 					<Card href={`/exercises/${progress.exercise.id}`} class="flex items-center justify-between gap-2">
-						<span class="font-medium text-[var(--color-text)] truncate">{progress.exercise.name}</span>
+						<span class="font-medium text-[var(--color-text)] truncate">
+							{progress.exercise.name}{#if progress.exercise.brand}<span class="text-[var(--color-text-muted)]"> — {progress.exercise.brand}</span>{/if}
+						</span>
 						<span class="text-sm text-[var(--color-text-muted)] shrink-0">
 							{#if t.sessionsCount > 1}
 								{fmtWeight(t.first)}kg &rarr; {fmtWeight(t.last)}kg &middot; {t.sessionsCount} sessions

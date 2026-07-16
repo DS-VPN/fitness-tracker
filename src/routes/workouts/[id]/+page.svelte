@@ -14,9 +14,15 @@
 
 	let { data }: { data: PageData } = $props();
 
-	type ExerciseOption = { id: number; name: string; muscleGroup: string | null };
+	type ExerciseOption = { id: number; name: string; brand: string | null; muscleGroup: string | null };
 	type SetEntry = { id: number; exerciseId: number; reps: number; weight: number; rpe: number | null; notes: string | null };
-	type Group = { exerciseId: number; exerciseName: string; sets: SetEntry[]; targetSets?: number | null };
+	type Group = {
+		exerciseId: number;
+		exerciseName: string;
+		exerciseBrand?: string | null;
+		sets: SetEntry[];
+		targetSets?: number | null;
+	};
 
 	let dateValue = $state(data.session.date);
 	let notesValue = $state(data.session.notes ?? '');
@@ -36,13 +42,14 @@
 			.map((p) => ({
 				exerciseId: p.exerciseId,
 				exerciseName: p.exerciseName,
+				exerciseBrand: p.exerciseBrand,
 				sets: [] as SetEntry[],
 				targetSets: p.targetSets
 			})),
 		...manuallyAdded
 			.filter((m) => !data.exerciseGroups.some((g) => g.exerciseId === m.id))
 			.filter((m) => !data.planExercises.some((p) => p.exerciseId === m.id))
-			.map((m) => ({ exerciseId: m.id, exerciseName: m.name, sets: [] as SetEntry[] }))
+			.map((m) => ({ exerciseId: m.id, exerciseName: m.name, exerciseBrand: m.brand, sets: [] as SetEntry[] }))
 	]);
 
 	function handleExercisePicked(ex: ExerciseOption) {
@@ -125,7 +132,9 @@
 				<Card>
 					<div class="flex items-center justify-between mb-1">
 						<div class="flex items-baseline gap-2 min-w-0">
-							<h2 class="text-base font-medium text-[var(--color-text)] truncate">{group.exerciseName}</h2>
+							<h2 class="text-base font-medium text-[var(--color-text)] truncate">
+								{group.exerciseName}{#if group.exerciseBrand}<span class="text-[var(--color-text-muted)]"> — {group.exerciseBrand}</span>{/if}
+							</h2>
 							{#if group.targetSets}
 								<span class="text-xs text-[var(--color-text-muted)] shrink-0">Target: {group.targetSets} sets</span>
 							{/if}

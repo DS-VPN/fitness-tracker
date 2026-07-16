@@ -57,6 +57,7 @@ export async function getPlan(userId: number, id: number) {
 			id: planExercises.id,
 			exerciseId: planExercises.exerciseId,
 			exerciseName: exercises.name,
+			exerciseBrand: exercises.brand,
 			muscleGroup: exercises.muscleGroup,
 			targetSets: planExercises.targetSets
 		})

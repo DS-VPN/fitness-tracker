@@ -6,7 +6,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 
-	type ExerciseOption = { id: number; name: string; muscleGroup: string | null };
+	type ExerciseOption = { id: number; name: string; brand: string | null; muscleGroup: string | null };
 
 	let {
 		open = $bindable(false),
@@ -17,6 +17,7 @@
 	} = $props();
 
 	let query = $state('');
+	let newBrand = $state('');
 	let selected = $state<ExerciseOption | null>(null);
 	let targetSets = $state<number | null>(null);
 	let creating = $state(false);
@@ -27,6 +28,10 @@
 	);
 	const exactMatch = $derived(exercises.some((e) => e.name.toLowerCase() === query.trim().toLowerCase()));
 
+	function subtitle(ex: ExerciseOption) {
+		return [ex.brand, ex.muscleGroup].filter(Boolean).join(' · ');
+	}
+
 	function pick(exercise: ExerciseOption) {
 		selected = exercise;
 		targetSets = null;
@@ -36,6 +41,7 @@
 	function reset() {
 		open = false;
 		query = '';
+		newBrand = '';
 		selected = null;
 		targetSets = null;
 		error = '';
@@ -45,7 +51,8 @@
 <Modal bind:open title="Add exercise" onclose={reset}>
 	{#if selected}
 		<p class="mb-3 text-sm text-[var(--color-text)]">
-			Adding <span class="font-medium">{selected.name}</span>
+			Adding <span class="font-medium">{selected.name}</span>{#if selected.brand}
+				<span class="text-[var(--color-text-muted)]"> · {selected.brand}</span>{/if}
 		</p>
 		<form
 			method="POST"
@@ -87,8 +94,8 @@
 					class="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-[var(--radius-md)] hover:bg-[var(--color-surface-alt)] text-left"
 				>
 					<span class="text-[var(--color-text)]">{ex.name}</span>
-					{#if ex.muscleGroup}
-						<span class="text-xs text-[var(--color-text-muted)] shrink-0">{ex.muscleGroup}</span>
+					{#if subtitle(ex)}
+						<span class="text-xs text-[var(--color-text-muted)] shrink-0">{subtitle(ex)}</span>
 					{/if}
 				</button>
 			{/each}
@@ -103,7 +110,7 @@
 			<form
 				method="POST"
 				action="?/createExercise"
-				class="mt-3 pt-3 border-t border-[var(--color-border)]"
+				class="mt-3 pt-3 border-t border-[var(--color-border)] space-y-2"
 				use:enhance={() => {
 					creating = true;
 					error = '';
@@ -119,6 +126,12 @@
 				}}
 			>
 				<input type="hidden" name="name" value={query.trim()} />
+				<TextField
+					label="Brand / machine (optional)"
+					name="brand"
+					bind:value={newBrand}
+					placeholder="e.g. Arsenal Strength — to tell machines apart"
+				/>
 				<Button type="submit" variant="secondary" full disabled={creating}>
 					<Icon name="plus" size={18} />
 					Add "{query.trim()}"

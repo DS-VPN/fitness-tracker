@@ -50,6 +50,7 @@ export async function getSessionWithSets(userId: number, id: number) {
 			id: workoutSets.id,
 			exerciseId: workoutSets.exerciseId,
 			exerciseName: exercises.name,
+			exerciseBrand: exercises.brand,
 			order: workoutSets.order,
 			reps: workoutSets.reps,
 			weight: workoutSets.weight,
@@ -61,10 +62,18 @@ export async function getSessionWithSets(userId: number, id: number) {
 		.where(eq(workoutSets.sessionId, id))
 		.orderBy(asc(workoutSets.order));
 
-	const groups = new Map<number, { exerciseId: number; exerciseName: string; sets: typeof rows }>();
+	const groups = new Map<
+		number,
+		{ exerciseId: number; exerciseName: string; exerciseBrand: string | null; sets: typeof rows }
+	>();
 	for (const row of rows) {
 		if (!groups.has(row.exerciseId)) {
-			groups.set(row.exerciseId, { exerciseId: row.exerciseId, exerciseName: row.exerciseName, sets: [] });
+			groups.set(row.exerciseId, {
+				exerciseId: row.exerciseId,
+				exerciseName: row.exerciseName,
+				exerciseBrand: row.exerciseBrand,
+				sets: []
+			});
 		}
 		groups.get(row.exerciseId)!.sets.push(row);
 	}

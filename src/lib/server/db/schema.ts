@@ -114,9 +114,10 @@ export const exercises = sqliteTable('exercises', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
 	name: text('name').notNull(),
+	brand: text('brand'),
 	muscleGroup: text('muscle_group'),
 	createdAt: timestamp('created_at')
-}, (t) => [unique('exercises_user_name_unique').on(t.userId, t.name)]);
+}, (t) => [unique('exercises_user_name_brand_unique').on(t.userId, t.name, t.brand)]);
 
 export const workoutPlans = sqliteTable('workout_plans', {
 	id: integer('id').primaryKey({ autoIncrement: true }),

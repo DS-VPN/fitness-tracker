@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 function friendlyError(e: unknown, fallback: string): string {
 	if (e instanceof Error) {
-		return e.message.includes('UNIQUE') ? 'An exercise with that name already exists' : e.message;
+		return e.message.includes('UNIQUE') ? 'An exercise with that name and brand already exists' : e.message;
 	}
 	return fallback;
 }
@@ -19,9 +19,10 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const name = String(form.get('name') ?? '').trim();
 		const muscleGroup = String(form.get('muscleGroup') ?? '').trim();
+		const brand = String(form.get('brand') ?? '').trim();
 		if (!name) return fail(400, { error: 'Name is required' });
 		try {
-			await createExercise(locals.user!.id, name, muscleGroup || null);
+			await createExercise(locals.user!.id, name, muscleGroup || null, brand || null);
 		} catch (e) {
 			return fail(400, { error: friendlyError(e, 'Could not create exercise') });
 		}
@@ -32,9 +33,10 @@ export const actions: Actions = {
 		const id = Number(form.get('id'));
 		const name = String(form.get('name') ?? '').trim();
 		const muscleGroup = String(form.get('muscleGroup') ?? '').trim();
+		const brand = String(form.get('brand') ?? '').trim();
 		if (!id || !name) return fail(400, { error: 'Name is required' });
 		try {
-			await updateExercise(locals.user!.id, id, name, muscleGroup || null);
+			await updateExercise(locals.user!.id, id, name, muscleGroup || null, brand || null);
 		} catch (e) {
 			return fail(400, { error: friendlyError(e, 'Could not update exercise') });
 		}

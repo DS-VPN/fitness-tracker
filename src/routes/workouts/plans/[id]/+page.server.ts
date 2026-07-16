@@ -32,7 +32,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 function friendlyError(e: unknown, fallback: string): string {
 	if (e instanceof Error) {
-		return e.message.includes('UNIQUE') ? 'An exercise with that name already exists' : e.message;
+		return e.message.includes('UNIQUE') ? 'An exercise with that name and brand already exists' : e.message;
 	}
 	return fallback;
 }
@@ -65,9 +65,10 @@ export const actions: Actions = {
 	createExercise: async ({ request, locals }) => {
 		const form = await request.formData();
 		const name = String(form.get('name') ?? '').trim();
+		const brand = String(form.get('brand') ?? '').trim();
 		if (!name) return fail(400, { error: 'Name is required' });
 		try {
-			const exercise = await createExercise(locals.user!.id, name);
+			const exercise = await createExercise(locals.user!.id, name, null, brand || null);
 			return { exercise };
 		} catch (e) {
 			return fail(400, { error: friendlyError(e, 'Could not add exercise') });

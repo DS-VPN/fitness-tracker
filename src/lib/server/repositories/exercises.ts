@@ -7,6 +7,7 @@ export async function listExercises(userId: number) {
 		.select({
 			id: exercises.id,
 			name: exercises.name,
+			brand: exercises.brand,
 			muscleGroup: exercises.muscleGroup,
 			setCount: sql<number>`count(${workoutSets.id})`.mapWith(Number)
 		})
@@ -25,20 +26,37 @@ export async function getExercise(userId: number, id: number) {
 	return row ?? null;
 }
 
-export async function createExercise(userId: number, name: string, muscleGroup?: string | null) {
+export async function createExercise(
+	userId: number,
+	name: string,
+	muscleGroup?: string | null,
+	brand?: string | null
+) {
 	const trimmed = name.trim();
 	if (!trimmed) throw new Error('Exercise name is required');
 	const [row] = await db
 		.insert(exercises)
-		.values({ userId, name: trimmed, muscleGroup: muscleGroup?.trim() || null, createdAt: new Date() })
+		.values({
+			userId,
+			name: trimmed,
+			brand: brand?.trim() || null,
+			muscleGroup: muscleGroup?.trim() || null,
+			createdAt: new Date()
+		})
 		.returning();
 	return row;
 }
 
-export async function updateExercise(userId: number, id: number, name: string, muscleGroup?: string | null) {
+export async function updateExercise(
+	userId: number,
+	id: number,
+	name: string,
+	muscleGroup?: string | null,
+	brand?: string | null
+) {
 	await db
 		.update(exercises)
-		.set({ name: name.trim(), muscleGroup: muscleGroup?.trim() || null })
+		.set({ name: name.trim(), brand: brand?.trim() || null, muscleGroup: muscleGroup?.trim() || null })
 		.where(and(eq(exercises.id, id), eq(exercises.userId, userId)));
 }
 

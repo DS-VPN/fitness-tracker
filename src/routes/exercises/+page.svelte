@@ -13,17 +13,20 @@
 
 	let addOpen = $state(false);
 	let newName = $state('');
+	let newBrand = $state('');
 	let newMuscleGroup = $state('');
 	let addError = $state('');
 
 	let editingId = $state<number | null>(null);
 	let editName = $state('');
+	let editBrand = $state('');
 	let editMuscleGroup = $state('');
 	let editError = $state('');
 
-	function startEdit(ex: { id: number; name: string; muscleGroup: string | null }) {
+	function startEdit(ex: { id: number; name: string; brand: string | null; muscleGroup: string | null }) {
 		editingId = ex.id;
 		editName = ex.name;
+		editBrand = ex.brand ?? '';
 		editMuscleGroup = ex.muscleGroup ?? '';
 		editError = '';
 	}
@@ -71,6 +74,12 @@
 					>
 						<input type="hidden" name="id" value={ex.id} />
 						<TextField label="Name" name="name" bind:value={editName} required />
+						<TextField
+							label="Brand / machine"
+							name="brand"
+							bind:value={editBrand}
+							placeholder="Optional, e.g. Arsenal Strength"
+						/>
 						<TextField label="Muscle group" name="muscleGroup" bind:value={editMuscleGroup} placeholder="Optional" />
 						{#if editError}
 							<p class="text-sm text-[var(--color-danger)]">{editError}</p>
@@ -84,6 +93,9 @@
 					<div class="flex items-center gap-1">
 						<a href={`/exercises/${ex.id}`} class="flex-1 min-w-0 py-1">
 							<p class="font-medium text-[var(--color-text)] truncate">{ex.name}</p>
+							{#if ex.brand}
+								<p class="text-xs text-[var(--color-text-muted)] truncate">{ex.brand}</p>
+							{/if}
 							<div class="flex items-center gap-2 mt-1.5">
 								{#if ex.muscleGroup}
 									<span
@@ -138,6 +150,7 @@
 	title="Add exercise"
 	onclose={() => {
 		newName = '';
+		newBrand = '';
 		newMuscleGroup = '';
 		addError = '';
 	}}
@@ -152,6 +165,7 @@
 				if (result.type === 'success') {
 					addOpen = false;
 					newName = '';
+					newBrand = '';
 					newMuscleGroup = '';
 				} else if (result.type === 'failure') {
 					addError = (result.data?.error as string) ?? 'Could not add exercise';
@@ -161,6 +175,12 @@
 		}}
 	>
 		<TextField label="Name" name="name" bind:value={newName} required placeholder="e.g. Bench press" />
+		<TextField
+			label="Brand / machine"
+			name="brand"
+			bind:value={newBrand}
+			placeholder="Optional, e.g. Arsenal Strength"
+		/>
 		<TextField label="Muscle group" name="muscleGroup" bind:value={newMuscleGroup} placeholder="Optional, e.g. Chest" />
 		{#if addError}
 			<p class="text-sm text-[var(--color-danger)]">{addError}</p>

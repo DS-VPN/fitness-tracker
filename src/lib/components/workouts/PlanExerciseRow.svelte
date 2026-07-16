@@ -8,6 +8,7 @@
 		id: number;
 		exerciseId: number;
 		exerciseName: string;
+		exerciseBrand: string | null;
 		muscleGroup: string | null;
 		targetSets: number | null;
 	};
@@ -23,16 +24,21 @@
 		editError = '';
 		editing = true;
 	}
+
+	const subtitle = $derived(
+		[exercise.exerciseBrand, exercise.muscleGroup, exercise.targetSets ? `Target: ${exercise.targetSets} sets` : null]
+			.filter(Boolean)
+			.join(' · ')
+	);
 </script>
 
 <div class="py-2.5">
 	<div class="flex items-center justify-between gap-2">
 		<div class="min-w-0">
 			<span class="block truncate font-medium text-[var(--color-text)]">{exercise.exerciseName}</span>
-			<p class="text-xs text-[var(--color-text-muted)]">
-				{#if exercise.muscleGroup}{exercise.muscleGroup}{/if}
-				{#if exercise.targetSets}{exercise.muscleGroup ? ' · ' : ''}Target: {exercise.targetSets} sets{/if}
-			</p>
+			{#if subtitle}
+				<p class="text-xs text-[var(--color-text-muted)]">{subtitle}</p>
+			{/if}
 		</div>
 		<div class="flex items-center gap-1 shrink-0">
 			<button

@@ -22,7 +22,10 @@
 
 <svelte:head><title>{progress.exercise.name} · Exercises</title></svelte:head>
 
-<PageHeader title={progress.exercise.name} back="/exercises" />
+<PageHeader
+	title={progress.exercise.brand ? `${progress.exercise.name} — ${progress.exercise.brand}` : progress.exercise.name}
+	back="/exercises"
+/>
 
 <div class="px-4 space-y-4">
 	{#if !progress.hasData}
