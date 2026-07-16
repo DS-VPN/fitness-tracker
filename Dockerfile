@@ -4,6 +4,11 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# SvelteKit's build-time route analysis imports src/lib/server/db, which requires
+# DATABASE_URL to be set — .env is intentionally excluded from the build context
+# (.dockerignore), so this stage needs its own throwaway value. Never used to store
+# real data; discarded when this stage ends.
+ENV DATABASE_URL=/tmp/build.db
 RUN npm run build
 
 # --- install production-only dependencies (separately, so dev deps never reach the final image) ---
