@@ -5,7 +5,7 @@
 
 	type Item = typeof shoppingListItems.$inferSelect;
 
-	let { item }: { item: Item } = $props();
+	let { item, ownerId }: { item: Item; ownerId: number } = $props();
 
 	function confirmSubmit(message: string) {
 		return ({ cancel }: { cancel: () => void }) => {
@@ -19,6 +19,7 @@
 >
 	<form method="POST" action="?/toggleChecked" use:enhance>
 		<input type="hidden" name="id" value={item.id} />
+		<input type="hidden" name="ownerId" value={ownerId} />
 		<input type="hidden" name="checked" value={String(!item.checked)} />
 		<button
 			type="submit"
@@ -48,6 +49,7 @@
 	<div class="flex items-center gap-0.5 shrink-0">
 		<form method="POST" action="?/setQuantity" use:enhance>
 			<input type="hidden" name="id" value={item.id} />
+			<input type="hidden" name="ownerId" value={ownerId} />
 			<input type="hidden" name="quantity" value={item.quantity - 1} />
 			<button
 				type="submit"
@@ -61,6 +63,7 @@
 		<span class="w-6 text-center text-sm font-medium text-[var(--color-text)]">×{item.quantity}</span>
 		<form method="POST" action="?/setQuantity" use:enhance>
 			<input type="hidden" name="id" value={item.id} />
+			<input type="hidden" name="ownerId" value={ownerId} />
 			<input type="hidden" name="quantity" value={item.quantity + 1} />
 			<button
 				type="submit"
@@ -74,6 +77,7 @@
 
 	<form method="POST" action="?/removeItem" use:enhance={confirmSubmit(`Remove ${item.name} from the list?`)}>
 		<input type="hidden" name="id" value={item.id} />
+		<input type="hidden" name="ownerId" value={ownerId} />
 		<button
 			type="submit"
 			aria-label={`Remove ${item.name}`}

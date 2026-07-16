@@ -11,18 +11,19 @@ import {
 import { listExercises, createExercise } from '$lib/server/repositories/exercises';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
+	const userId = locals.user!.id;
 	const id = Number(params.id);
-	const result = await getSessionWithSets(id);
+	const result = await getSessionWithSets(userId, id);
 	if (!result) throw error(404, 'Workout session not found');
 
 	// Preload "last time" numbers for every exercise so picking one in the UI is instant
 	// (no extra round-trip needed between selecting an exercise and seeing a prefilled row).
-	const allExercises = await listExercises();
+	const allExercises = await listExercises(userId);
 	const lastSetsByExercise: Record<number, Awaited<ReturnType<typeof lastSetsForExercise>>> = {};
 	await Promise.all(
 		allExercises.map(async (ex) => {
-			lastSetsByExercise[ex.id] = await lastSetsForExercise(ex.id, id);
+			lastSetsByExercise[ex.id] = await lastSetsForExercise(userId, ex.id, id);
 		})
 	);
 
@@ -42,33 +43,33 @@ function friendlyError(e: unknown, fallback: string): string {
 }
 
 export const actions: Actions = {
-	updateSession: async ({ request, params }) => {
+	updateSession: async ({ request, params, locals }) => {
 		const id = Number(params.id);
 		const form = await request.formData();
 		const date = String(form.get('date') ?? '').trim();
 		const notes = String(form.get('notes') ?? '');
 		if (!date) return fail(400, { error: 'Date is required' });
-		await updateSession(id, date, notes);
+		await updateSession(locals.user!.id, id, date, notes);
 	},
 
-	deleteSession: async ({ params }) => {
-		await deleteSession(Number(params.id));
+	deleteSession: async ({ params, locals }) => {
+		await deleteSession(locals.user!.id, Number(params.id));
 		throw redirect(303, '/workouts');
 	},
 
-	createExercise: async ({ request }) => {
+	createExercise: async ({ request, locals }) => {
 		const form = await request.formData();
 		const name = String(form.get('name') ?? '').trim();
 		if (!name) return fail(400, { error: 'Name is required' });
 		try {
-			const exercise = await createExercise(name);
+			const exercise = await createExercise(locals.user!.id, name);
 			return { exercise };
 		} catch (e) {
 			return fail(400, { error: friendlyError(e, 'Could not create exercise') });
 		}
 	},
 
-	addSet: async ({ request, params }) => {
+	addSet: async ({ request, params, locals }) => {
 		const sessionId = Number(params.id);
 		const form = await request.formData();
 		const exerciseId = Number(form.get('exerciseId'));
@@ -82,10 +83,14 @@ export const actions: Actions = {
 		if (!Number.isFinite(reps) || !Number.isFinite(weight)) {
 			return fail(400, { error: 'Invalid set data' });
 		}
-		await addSet(sessionId, exerciseId, { reps, weight });
+		try {
+			await addSet(locals.user!.id, sessionId, exerciseId, { reps, weight });
+		} catch (e) {
+			return fail(400, { error: friendlyError(e, 'Could not add set') });
+		}
 	},
 
-	updateSet: async ({ request }) => {
+	updateSet: async ({ request, locals }) => {
 		const form = await request.formData();
 		const id = Number(form.get('id'));
 		const reps = Math.round(Number(form.get('reps')));
@@ -96,12 +101,12 @@ export const actions: Actions = {
 		if (!id || !Number.isFinite(reps) || !Number.isFinite(weight)) {
 			return fail(400, { error: 'Invalid set data' });
 		}
-		await updateSet(id, { reps, weight, rpe, notes });
+		await updateSet(locals.user!.id, id, { reps, weight, rpe, notes });
 	},
 
-	deleteSet: async ({ request }) => {
+	deleteSet: async ({ request, locals }) => {
 		const id = Number((await request.formData()).get('id'));
 		if (!id) return fail(400, { error: 'Missing id' });
-		await deleteSet(id);
+		await deleteSet(locals.user!.id, id);
 	}
 };

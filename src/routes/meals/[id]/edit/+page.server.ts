@@ -3,11 +3,12 @@ import { getMeal, updateMeal, type MealInput } from '$lib/server/repositories/me
 import { listCategories } from '$lib/server/repositories/categories';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
 	const id = Number(params.id);
 	if (!Number.isFinite(id)) throw error(404, 'Meal not found');
 
-	const [meal, categories] = await Promise.all([getMeal(id), listCategories()]);
+	const userId = locals.user!.id;
+	const [meal, categories] = await Promise.all([getMeal(userId, id), listCategories(userId)]);
 	if (!meal) throw error(404, 'Meal not found');
 
 	return { meal, categories };
@@ -57,13 +58,13 @@ function parseMealForm(form: FormData): { data: MealInput; categoryIds: number[]
 }
 
 export const actions: Actions = {
-	default: async ({ request, params }) => {
+	default: async ({ request, params, locals }) => {
 		const id = Number(params.id);
 		const form = await request.formData();
 		const parsed = parseMealForm(form);
 		if ('error' in parsed) return fail(400, { error: parsed.error });
 
-		await updateMeal(id, parsed.data, parsed.categoryIds);
+		await updateMeal(locals.user!.id, id, parsed.data, parsed.categoryIds);
 		throw redirect(303, `/meals/${id}`);
 	}
 };

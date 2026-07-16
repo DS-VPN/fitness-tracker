@@ -3,8 +3,8 @@ import { createMeal, type MealInput } from '$lib/server/repositories/meals';
 import { listCategories } from '$lib/server/repositories/categories';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
-	return { categories: await listCategories() };
+export const load: PageServerLoad = async ({ locals }) => {
+	return { categories: await listCategories(locals.user!.id) };
 };
 
 function parseMealForm(form: FormData): { data: MealInput; categoryIds: number[] } | { error: string } {
@@ -51,12 +51,12 @@ function parseMealForm(form: FormData): { data: MealInput; categoryIds: number[]
 }
 
 export const actions: Actions = {
-	default: async ({ request }) => {
+	default: async ({ request, locals }) => {
 		const form = await request.formData();
 		const parsed = parseMealForm(form);
 		if ('error' in parsed) return fail(400, { error: parsed.error });
 
-		const meal = await createMeal(parsed.data, parsed.categoryIds);
+		const meal = await createMeal(locals.user!.id, parsed.data, parsed.categoryIds);
 		throw redirect(303, `/meals/${meal.id}`);
 	}
 };

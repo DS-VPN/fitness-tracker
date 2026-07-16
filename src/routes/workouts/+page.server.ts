@@ -2,8 +2,8 @@ import { redirect } from '@sveltejs/kit';
 import { listSessions, createSession } from '$lib/server/repositories/workouts';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
-	const sessions = await listSessions();
+export const load: PageServerLoad = async ({ locals }) => {
+	const sessions = await listSessions(locals.user!.id);
 	return { sessions };
 };
 
@@ -16,8 +16,8 @@ function todayIso(): string {
 }
 
 export const actions: Actions = {
-	start: async () => {
-		const session = await createSession(todayIso());
+	start: async ({ locals }) => {
+		const session = await createSession(locals.user!.id, todayIso());
 		throw redirect(303, `/workouts/${session.id}`);
 	}
 };

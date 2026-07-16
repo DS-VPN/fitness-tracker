@@ -1,56 +1,141 @@
-import { fail } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import {
 	listShoppingList,
 	addManualItem,
 	setChecked,
 	setQuantity,
 	removeItem,
-	clearChecked
+	clearChecked,
+	hasListAccess,
+	listMyShares,
+	listSharedWithMe,
+	shareListWith,
+	revokeShare,
+	leaveSharedList
 } from '$lib/server/repositories/shoppingList';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
-	const { fromMeals, manual } = await listShoppingList();
-	return { fromMeals, manual };
+export const load: PageServerLoad = async ({ url, locals }) => {
+	const userId = locals.user!.id;
+	const ownerParam = url.searchParams.get('owner');
+
+	let ownerId = userId;
+	if (ownerParam !== null) {
+		const parsed = Number(ownerParam);
+		if (!Number.isFinite(parsed) || !(await hasListAccess(userId, parsed))) {
+			throw error(403, 'Not found');
+		}
+		ownerId = parsed;
+	}
+
+	const [{ fromMeals, manual }, myShares, sharedWithMe] = await Promise.all([
+		listShoppingList(ownerId),
+		listMyShares(userId),
+		listSharedWithMe(userId)
+	]);
+
+	const isOwner = ownerId === userId;
+	const ownerUsername = isOwner ? null : (sharedWithMe.find((s) => s.ownerId === ownerId)?.ownerUsername ?? null);
+
+	return { fromMeals, manual, ownerId, isOwner, ownerUsername, myShares, sharedWithMe };
 };
 
-function readId(form: FormData): number | null {
-	const id = Number(form.get('id'));
+function readId(form: FormData, field = 'id'): number | null {
+	const id = Number(form.get(field));
 	return Number.isFinite(id) ? id : null;
 }
 
+function friendlyError(e: unknown, fallback: string): string {
+	return e instanceof Error ? e.message : fallback;
+}
+
 export const actions: Actions = {
-	toggleChecked: async ({ request }) => {
+	toggleChecked: async ({ request, locals }) => {
 		const form = await request.formData();
 		const id = readId(form);
-		if (id === null) return fail(400, { error: 'Invalid item' });
-		await setChecked(id, form.get('checked') === 'true');
+		const ownerId = readId(form, 'ownerId');
+		if (id === null || ownerId === null) return fail(400, { error: 'Invalid item' });
+		try {
+			await setChecked(locals.user!.id, ownerId, id, form.get('checked') === 'true');
+		} catch (e) {
+			return fail(403, { error: friendlyError(e, 'You do not have access to this shopping list') });
+		}
 	},
 
-	setQuantity: async ({ request }) => {
+	setQuantity: async ({ request, locals }) => {
 		const form = await request.formData();
 		const id = readId(form);
+		const ownerId = readId(form, 'ownerId');
 		const quantity = Number(form.get('quantity'));
-		if (id === null || !Number.isFinite(quantity)) return fail(400, { error: 'Invalid quantity' });
-		await setQuantity(id, quantity);
+		if (id === null || ownerId === null || !Number.isFinite(quantity)) {
+			return fail(400, { error: 'Invalid quantity' });
+		}
+		try {
+			await setQuantity(locals.user!.id, ownerId, id, quantity);
+		} catch (e) {
+			return fail(403, { error: friendlyError(e, 'You do not have access to this shopping list') });
+		}
 	},
 
-	removeItem: async ({ request }) => {
+	removeItem: async ({ request, locals }) => {
 		const form = await request.formData();
 		const id = readId(form);
-		if (id === null) return fail(400, { error: 'Invalid item' });
-		await removeItem(id);
+		const ownerId = readId(form, 'ownerId');
+		if (id === null || ownerId === null) return fail(400, { error: 'Invalid item' });
+		try {
+			await removeItem(locals.user!.id, ownerId, id);
+		} catch (e) {
+			return fail(403, { error: friendlyError(e, 'You do not have access to this shopping list') });
+		}
 	},
 
-	addManualItem: async ({ request }) => {
+	addManualItem: async ({ request, locals }) => {
 		const form = await request.formData();
+		const ownerId = readId(form, 'ownerId');
 		const name = String(form.get('name') ?? '').trim();
 		const brand = String(form.get('brand') ?? '').trim();
+		if (ownerId === null) return fail(400, { error: 'Invalid list' });
 		if (!name) return fail(400, { error: 'Item name is required' });
-		await addManualItem(name, brand || undefined);
+		try {
+			await addManualItem(locals.user!.id, ownerId, name, brand || undefined);
+		} catch (e) {
+			return fail(403, { error: friendlyError(e, 'You do not have access to this shopping list') });
+		}
 	},
 
-	clearChecked: async () => {
-		await clearChecked();
+	clearChecked: async ({ request, locals }) => {
+		const form = await request.formData();
+		const ownerId = readId(form, 'ownerId');
+		if (ownerId === null) return fail(400, { error: 'Invalid list' });
+		try {
+			await clearChecked(locals.user!.id, ownerId);
+		} catch (e) {
+			return fail(403, { error: friendlyError(e, 'You do not have access to this shopping list') });
+		}
+	},
+
+	share: async ({ request, locals }) => {
+		const form = await request.formData();
+		const username = String(form.get('username') ?? '');
+		try {
+			await shareListWith(locals.user!.id, username);
+		} catch (e) {
+			return fail(400, { error: friendlyError(e, 'Could not share list') });
+		}
+	},
+
+	revokeShare: async ({ request, locals }) => {
+		const form = await request.formData();
+		const sharedWithUserId = readId(form, 'userId');
+		if (sharedWithUserId === null) return fail(400, { error: 'Invalid user' });
+		await revokeShare(locals.user!.id, sharedWithUserId);
+	},
+
+	leaveList: async ({ request, locals }) => {
+		const form = await request.formData();
+		const ownerId = readId(form, 'ownerId');
+		if (ownerId === null) return fail(400, { error: 'Invalid list' });
+		await leaveSharedList(locals.user!.id, ownerId);
+		throw redirect(303, '/shopping-list');
 	}
 };

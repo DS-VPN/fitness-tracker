@@ -1,17 +1,21 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import Card from '$lib/components/Card.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import Chip from '$lib/components/Chip.svelte';
 	import TextField from '$lib/components/TextField.svelte';
 	import ShoppingItemRow from '$lib/components/shopping/ShoppingItemRow.svelte';
+	import ShareListModal from '$lib/components/shopping/ShareListModal.svelte';
 	import type { PageData, ActionData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let newName = $state('');
 	let newBrand = $state('');
+	let shareOpen = $state(false);
 
 	const isEmpty = $derived(data.fromMeals.length === 0 && data.manual.length === 0);
 	const hasChecked = $derived(
@@ -27,10 +31,19 @@
 
 <svelte:head><title>Shopping List · Fitness Tracker</title></svelte:head>
 
-<PageHeader title="Shopping List">
+<PageHeader title={data.isOwner ? 'Shopping List' : `${data.ownerUsername}'s list`}>
 	{#snippet actions()}
+		{#if data.isOwner}
+			<Button variant="ghost" size="md" onclick={() => (shareOpen = true)}>Share</Button>
+		{:else}
+			<form method="POST" action="?/leaveList" use:enhance={confirmSubmit('Leave this shared list?')}>
+				<input type="hidden" name="ownerId" value={data.ownerId} />
+				<Button type="submit" variant="ghost" size="md">Leave list</Button>
+			</form>
+		{/if}
 		{#if hasChecked}
 			<form method="POST" action="?/clearChecked" use:enhance={confirmSubmit('Clear all checked items?')}>
+				<input type="hidden" name="ownerId" value={data.ownerId} />
 				<Button type="submit" variant="ghost" size="md">Clear checked</Button>
 			</form>
 		{/if}
@@ -38,6 +51,20 @@
 </PageHeader>
 
 <div class="px-4 space-y-6">
+	{#if data.sharedWithMe.length > 0}
+		<div class="flex gap-2 overflow-x-auto pb-1">
+			<Chip selected={data.isOwner} onclick={() => goto('/shopping-list')}>Mine</Chip>
+			{#each data.sharedWithMe as shared (shared.ownerId)}
+				<Chip
+					selected={data.ownerId === shared.ownerId}
+					onclick={() => goto(`/shopping-list?owner=${shared.ownerId}`)}
+				>
+					{shared.ownerUsername}'s list
+				</Chip>
+			{/each}
+		</div>
+	{/if}
+
 	{#if isEmpty}
 		<EmptyState
 			icon="cart"
@@ -50,7 +77,7 @@
 				<h2 class="text-sm font-medium text-[var(--color-text-muted)] mb-2 px-1">From your meals</h2>
 				<div class="space-y-2">
 					{#each data.fromMeals as item (item.id)}
-						<ShoppingItemRow {item} />
+						<ShoppingItemRow {item} ownerId={data.ownerId} />
 					{/each}
 				</div>
 			</section>
@@ -61,7 +88,7 @@
 				<h2 class="text-sm font-medium text-[var(--color-text-muted)] mb-2 px-1">Other items</h2>
 				<div class="space-y-2">
 					{#each data.manual as item (item.id)}
-						<ShoppingItemRow {item} />
+						<ShoppingItemRow {item} ownerId={data.ownerId} />
 					{/each}
 				</div>
 			</section>
@@ -84,6 +111,7 @@
 			}}
 		>
 			<h2 class="text-sm font-medium text-[var(--color-text)]">Add item</h2>
+			<input type="hidden" name="ownerId" value={data.ownerId} />
 			<TextField label="Name" name="name" placeholder="e.g. Oat milk" bind:value={newName} required />
 			<TextField label="Brand (optional)" name="brand" placeholder="e.g. Oatly" bind:value={newBrand} />
 			{#if form?.error}
@@ -93,3 +121,7 @@
 		</form>
 	</Card>
 </div>
+
+{#if data.isOwner}
+	<ShareListModal bind:open={shareOpen} shares={data.myShares} />
+{/if}

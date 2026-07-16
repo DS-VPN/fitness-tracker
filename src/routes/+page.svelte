@@ -35,7 +35,7 @@
 <div class="mx-auto max-w-md px-4 pt-[calc(1.25rem+env(safe-area-inset-top))] pb-4 space-y-5">
 	<div class="flex items-center justify-between">
 		<div>
-			<p class="text-sm text-[var(--color-text-muted)]">Welcome back</p>
+			<p class="text-sm text-[var(--color-text-muted)]">Welcome back, {data.username}</p>
 			<h1 class="text-2xl text-[var(--color-text)]">Fitness Tracker</h1>
 		</div>
 		<form method="POST" action="/logout">

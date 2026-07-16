@@ -6,8 +6,6 @@ services:
       - '${PORT:-3000}:3000'
     environment:
       DATABASE_URL: /data/fitness.db
-      AUTH_PASSWORD: ${AUTH_PASSWORD}
-      SESSION_SECRET: ${SESSION_SECRET}
       ORIGIN: ${ORIGIN}
       PORT: 3000
     volumes:
