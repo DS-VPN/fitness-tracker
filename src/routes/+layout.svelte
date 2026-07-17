@@ -27,7 +27,10 @@
 	<link rel="icon" href="/icons/icon-192.png" sizes="192x192" />
 </svelte:head>
 
-<div class="flex h-[100dvh] flex-col">
+<!-- Fixed to the viewport (not a % / vh height) so the shell is always exactly the visible
+     area on every iOS version and toolbar state; the content scrolls inside, and the nav is a
+     normal in-flow element pinned to the bottom of that fixed area on every page. -->
+<div class="fixed inset-0 flex flex-col">
 	<main bind:this={mainEl} class="flex-1 min-h-0 overflow-y-auto overscroll-contain">
 		{@render children()}
 	</main>
