@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
+	import { parseDecimal } from '$lib/utils/parseDecimal';
 
 	let {
 		label,
@@ -9,14 +10,28 @@
 		class: className = ''
 	}: { label: string; value?: number; step?: number; min?: number; class?: string } = $props();
 
+	// Free-text entry (not a native number input) so arbitrary precision and a "," decimal separator both
+	// work reliably — native `type="number"` enforces an implicit step of 1 unless "any" is used, and some
+	// browsers/keyboards won't accept a typed "," at all. `text` is only re-derived from `value` on button
+	// clicks, never while the user is typing, so it never fights their in-progress input.
+	let text = $state(String(value));
+
+	function round(n: number) {
+		return Math.round(n * 1000) / 1000;
+	}
+
+	function handleInput(e: Event) {
+		text = (e.currentTarget as HTMLInputElement).value;
+		value = parseDecimal(text);
+	}
+
 	function dec() {
 		value = Math.max(min, round(value - step));
+		text = String(value);
 	}
 	function inc() {
 		value = round(value + step);
-	}
-	function round(n: number) {
-		return Math.round(n * 100) / 100;
+		text = String(value);
 	}
 </script>
 
@@ -34,9 +49,10 @@
 			<Icon name="minus" size={18} />
 		</button>
 		<input
-			type="number"
+			type="text"
 			inputmode="decimal"
-			bind:value
+			value={text}
+			oninput={handleInput}
 			class="w-full h-12 text-center text-lg font-medium bg-transparent focus:outline-none [appearance:textfield]"
 		/>
 		<button

@@ -15,8 +15,9 @@
 		return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 	}
 
+	// No rounding — weights are stored and shown at whatever precision the user actually entered.
 	function fmtNum(n: number) {
-		return Number.isInteger(n) ? String(n) : n.toFixed(1);
+		return String(n);
 	}
 </script>
 

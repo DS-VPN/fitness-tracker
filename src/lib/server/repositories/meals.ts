@@ -335,6 +335,25 @@ export async function flatProductIngredients(mealId: number): Promise<{ productI
 	return rows.filter((r) => r.productId != null).map((r) => ({ productId: r.productId!, quantity: r.quantity }));
 }
 
+/** Resolves a meal down to a flat {productId, quantity} list, expanding any sub-meal ingredient into its own
+ *  direct products (sub-meals never contain further sub-meals, so this is complete without deeper recursion).
+ *  Used so "add this meal to shopping" adds its actual ingredients rather than the meal's own name. */
+export async function resolveMealProducts(mealId: number): Promise<{ productId: number; quantity: number }[]> {
+	const ingredients = await db.select().from(mealIngredients).where(eq(mealIngredients.mealId, mealId));
+	const results: { productId: number; quantity: number }[] = [];
+	for (const ing of ingredients) {
+		if (ing.productId != null) {
+			results.push({ productId: ing.productId, quantity: ing.quantity });
+		} else if (ing.subMealId != null) {
+			const subProducts = await flatProductIngredients(ing.subMealId);
+			for (const sp of subProducts) {
+				results.push({ productId: sp.productId, quantity: sp.quantity * ing.quantity });
+			}
+		}
+	}
+	return results;
+}
+
 /** Candidates for the "add sub-meal" picker: the user's meals that don't themselves contain a sub-meal (depth-1 rule), excluding the meal being built. */
 export async function eligibleSubMeals(userId: number, excludeMealId: number) {
 	const subMealParents = await db

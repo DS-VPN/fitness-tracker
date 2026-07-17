@@ -1,6 +1,7 @@
 import { db } from '$lib/server/db';
 import { shoppingListItems, meals, users, shoppingListShares, products } from '$lib/server/db/schema';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { resolveMealProducts } from '$lib/server/repositories/meals';
 
 export async function hasListAccess(actingUserId: number, ownerId: number): Promise<boolean> {
 	if (actingUserId === ownerId) return true;
@@ -29,32 +30,16 @@ export async function listShoppingList(ownerId: number) {
 	};
 }
 
-/** Adds a meal's product to the current user's own list (meals are private, so the list is always your own). */
-export async function addMealToList(userId: number, mealId: number) {
-	const [meal] = await db.select().from(meals).where(and(eq(meals.id, mealId), eq(meals.userId, userId)));
+/** Adds every product that makes up a meal (recursing through one level of sub-meals, using the recipe's own
+ *  quantities) to the user's own list — never adds the meal's own name as a line item, since you can't buy
+ *  "1x Taco Night" at a store, only tortillas/ground beef/cheese/etc. Returns how many product lines were added. */
+export async function addMealToList(userId: number, mealId: number): Promise<number> {
+	const [meal] = await db.select({ id: meals.id }).from(meals).where(and(eq(meals.id, mealId), eq(meals.userId, userId)));
 	if (!meal) throw new Error('Meal not found');
 
-	const [existing] = await db
-		.select()
-		.from(shoppingListItems)
-		.where(and(eq(shoppingListItems.userId, userId), eq(shoppingListItems.mealId, mealId)));
-
-	if (existing) {
-		await db
-			.update(shoppingListItems)
-			.set({ quantity: existing.quantity + 1, checked: false })
-			.where(eq(shoppingListItems.id, existing.id));
-		return;
-	}
-
-	await db.insert(shoppingListItems).values({
-		userId,
-		mealId: meal.id,
-		name: meal.name,
-		brand: meal.brand,
-		quantity: 1,
-		checked: false
-	});
+	const resolved = await resolveMealProducts(mealId);
+	await addProductsToList(userId, resolved);
+	return resolved.length;
 }
 
 /** Quick-add a product straight to the user's own list — merges into an existing manual item with the same name, like addManualItem does. */

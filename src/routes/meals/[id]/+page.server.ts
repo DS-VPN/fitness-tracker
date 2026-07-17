@@ -37,8 +37,8 @@ function parseQuantity(form: FormData): number {
 export const actions: Actions = {
 	addToList: async ({ params, locals }) => {
 		const id = Number(params.id);
-		await addMealToList(locals.user!.id, id);
-		return { added: true };
+		const count = await addMealToList(locals.user!.id, id);
+		return { added: true, count };
 	},
 
 	delete: async ({ params, locals }) => {

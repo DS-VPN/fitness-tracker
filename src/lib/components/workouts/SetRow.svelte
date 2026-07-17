@@ -46,7 +46,7 @@
 		<input type="hidden" name="id" value={set.id} />
 		<div class="flex gap-2">
 			<NumberField label="Reps" name="reps" bind:value={editReps} min={0} class="flex-1" />
-			<NumberField label="Weight" name="weight" bind:value={editWeight} min={0} step={0.5} suffix="kg" class="flex-1" />
+			<NumberField label="Weight" name="weight" bind:value={editWeight} suffix="kg" decimalText class="flex-1" />
 		</div>
 		<div class="flex gap-2">
 			<NumberField label="RPE" name="rpe" bind:value={editRpe} min={0} step={0.5} class="flex-1" />

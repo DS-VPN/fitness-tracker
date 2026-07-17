@@ -15,6 +15,7 @@
 
 	let pickerOpen = $state(false);
 	let added = $state(false);
+	let addedCount = $state(0);
 	let addedTimeout: ReturnType<typeof setTimeout> | undefined;
 
 	function fmt(n: number) {
@@ -92,6 +93,7 @@
 			use:enhance={() => {
 				return async ({ result, update }) => {
 					if (result.type === 'success') {
+						addedCount = (result.data?.count as number) ?? 0;
 						added = true;
 						clearTimeout(addedTimeout);
 						addedTimeout = setTimeout(() => (added = false), 2000);
@@ -102,11 +104,17 @@
 		>
 			<Button type="submit" variant="primary" size="lg" full class="w-full">
 				<Icon name="cart" size={18} />
-				Add meal to shopping list
+				Add ingredients to shopping list
 			</Button>
 		</form>
 		{#if added}
-			<p class="mt-2 text-center text-sm text-[var(--color-success)]">Added</p>
+			<p class="mt-2 text-center text-sm text-[var(--color-success)]">
+				{#if addedCount > 0}
+					Added {addedCount} {addedCount === 1 ? 'item' : 'items'}
+				{:else}
+					This meal has no ingredients yet
+				{/if}
+			</p>
 		{/if}
 	</div>
 

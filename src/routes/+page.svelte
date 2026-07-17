@@ -29,8 +29,9 @@
 		return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 	}
 
+	// No rounding — weights are stored and shown at whatever precision the user actually entered.
 	function fmtWeight(n: number) {
-		return Number.isInteger(n) ? n : Math.round(n * 10) / 10;
+		return n;
 	}
 
 	function trend(history: { topWeight: number }[]) {
