@@ -2,6 +2,7 @@ import { db } from '$lib/server/db';
 import { shoppingListItems, shoppingListItemSources, meals, users, shoppingListShares, products } from '$lib/server/db/schema';
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { resolveMealProducts } from '$lib/server/repositories/meals';
+import { canViewMeal } from '$lib/server/repositories/mealShares';
 
 export async function hasListAccess(actingUserId: number, ownerId: number): Promise<boolean> {
 	if (actingUserId === ownerId) return true;
@@ -89,10 +90,14 @@ async function upsertSource(itemId: number, mealId: number | null, mealName: str
  *  touched. Grams are never stored here — they're computed live in listShoppingList from the meal's CURRENT
  *  ingredient quantities, so editing a recipe after adding it updates the shopping list automatically. */
 export async function addMealToList(userId: number, mealId: number, multiplier: number = 1): Promise<number> {
+	// The meal may be the user's own or one shared with them. Items land on the acting user's own
+	// list; the sourced products belong to the meal's owner and are resolved by id at read time,
+	// so a recipient shopping a shared recipe sees its real ingredient names/amounts.
+	if (!(await canViewMeal(userId, mealId))) throw new Error('Meal not found');
 	const [meal] = await db
 		.select({ id: meals.id, name: meals.name })
 		.from(meals)
-		.where(and(eq(meals.id, mealId), eq(meals.userId, userId)));
+		.where(eq(meals.id, mealId));
 	if (!meal) throw new Error('Meal not found');
 
 	const normalized = normalizeMultiplier(multiplier);

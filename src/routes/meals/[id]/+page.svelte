@@ -8,13 +8,16 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import IngredientRow from '$lib/components/meals/IngredientRow.svelte';
 	import IngredientPicker from '$lib/components/meals/IngredientPicker.svelte';
+	import ShareMealsModal from '$lib/components/meals/ShareMealsModal.svelte';
 	import NumberStepper from '$lib/components/NumberStepper.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 	const meal = $derived(data.meal);
+	const isOwner = $derived(data.meal.isOwner);
 
 	let pickerOpen = $state(false);
+	let shareOpen = $state(false);
 	let added = $state(false);
 	let addedCount = $state(0);
 	let addedTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -40,13 +43,18 @@
 <svelte:head><title>{meal.name} · Fitness Tracker</title></svelte:head>
 
 {#snippet headerActions()}
+	<Button variant="ghost" size="md" onclick={() => (shareOpen = true)}>Share</Button>
 	<Button href={`/meals/${meal.id}/edit`} variant="ghost" size="icon">
 		<Icon name="edit" size={20} />
 		<span class="sr-only">Edit meal</span>
 	</Button>
 {/snippet}
 
-<PageHeader title={meal.name} back="/meals" actions={headerActions} />
+<PageHeader
+	title={meal.name}
+	back={isOwner ? '/meals' : `/meals?owner=${meal.userId}`}
+	actions={isOwner ? headerActions : undefined}
+/>
 
 <div class="mx-auto max-w-md space-y-4 px-4 pb-6">
 	<Card>
@@ -159,37 +167,46 @@
 			<EmptyState
 				icon="meals"
 				title="No ingredients yet"
-				description="Add a product or another meal below to build this recipe."
+				description={isOwner
+					? 'Add a product or another meal below to build this recipe.'
+					: 'This meal has no ingredients yet.'}
 			/>
 		{:else}
 			<Card>
 				<div class="divide-y divide-[var(--color-border)]">
 					{#each meal.ingredients as ingredient (ingredient.id)}
-						<IngredientRow {ingredient} />
+						<IngredientRow {ingredient} readonly={!isOwner} />
 					{/each}
 				</div>
 			</Card>
 		{/if}
-		<Button variant="secondary" full size="lg" class="mt-3 w-full" onclick={() => (pickerOpen = true)}>
-			<Icon name="plus" size={18} />
-			Add ingredient
-		</Button>
+		{#if isOwner}
+			<Button variant="secondary" full size="lg" class="mt-3 w-full" onclick={() => (pickerOpen = true)}>
+				<Icon name="plus" size={18} />
+				Add ingredient
+			</Button>
+		{/if}
 	</div>
 
-	<form
-		method="POST"
-		action="?/delete"
-		use:enhance={({ cancel }) => {
-			if (!confirm(`Delete "${meal.name}"? This can't be undone.`)) {
-				cancel();
-			}
-		}}
-	>
-		<Button type="submit" variant="danger" size="md" full class="w-full">
-			<Icon name="trash" size={16} />
-			Delete meal
-		</Button>
-	</form>
+	{#if isOwner}
+		<form
+			method="POST"
+			action="?/delete"
+			use:enhance={({ cancel }) => {
+				if (!confirm(`Delete "${meal.name}"? This can't be undone.`)) {
+					cancel();
+				}
+			}}
+		>
+			<Button type="submit" variant="danger" size="md" full class="w-full">
+				<Icon name="trash" size={16} />
+				Delete meal
+			</Button>
+		</form>
+	{/if}
 </div>
 
-<IngredientPicker bind:open={pickerOpen} products={data.products} subMeals={data.subMeals} />
+{#if isOwner}
+	<IngredientPicker bind:open={pickerOpen} products={data.products} subMeals={data.subMeals} />
+	<ShareMealsModal bind:open={shareOpen} shares={data.shares} meal={{ id: meal.id, name: meal.name }} />
+{/if}

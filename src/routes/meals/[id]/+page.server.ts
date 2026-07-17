@@ -1,6 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import {
 	getMeal,
+	getMealForViewer,
 	deleteMeal,
 	addProductIngredient,
 	addSubMealIngredient,
@@ -11,6 +12,8 @@ import {
 	flatProductIngredients
 } from '$lib/server/repositories/meals';
 import { listProducts, getProduct } from '$lib/server/repositories/products';
+import { listCategories } from '$lib/server/repositories/categories';
+import { listMyMealShares, shareMealsWith, revokeMealShare } from '$lib/server/repositories/mealShares';
 import { addMealToList, addProductToList, addProductsToList } from '$lib/server/repositories/shoppingList';
 import { logMealToDay } from '$lib/server/repositories/nutritionLog';
 import { todayIso } from '$lib/utils/todayIso';
@@ -22,14 +25,22 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	if (!Number.isFinite(id)) throw error(404, 'Meal not found');
 
 	const userId = locals.user!.id;
-	const [meal, products, subMeals] = await Promise.all([
-		getMeal(userId, id),
-		listProducts(userId),
-		eligibleSubMeals(userId, id)
-	]);
+	const meal = await getMealForViewer(userId, id);
 	if (!meal) throw error(404, 'Meal not found');
 
-	return { meal, products, subMeals };
+	// Recipients can't edit, so the ingredient pickers and share management are owner-only.
+	if (!meal.isOwner) {
+		return { meal, products: [], subMeals: [], categories: [], shares: [] };
+	}
+
+	const [products, subMeals, categories, shares] = await Promise.all([
+		listProducts(userId),
+		eligibleSubMeals(userId, id),
+		listCategories(userId),
+		listMyMealShares(userId, { mealId: id })
+	]);
+
+	return { meal, products, subMeals, categories, shares };
 };
 
 function parseQuantity(form: FormData): number {
@@ -206,5 +217,25 @@ export const actions: Actions = {
 			flat.map((f) => ({ productId: f.productId, quantity: f.quantity * outerQuantity }))
 		);
 		return { added: true };
+	},
+
+	shareMeals: async ({ request, params, locals }) => {
+		const id = Number(params.id);
+		const form = await request.formData();
+		const username = String(form.get('username') ?? '');
+		try {
+			await shareMealsWith(locals.user!.id, username, { mealId: id });
+		} catch (e) {
+			return fail(400, { error: e instanceof Error ? e.message : 'Could not share meal' });
+		}
+		return { success: true };
+	},
+
+	revokeMealShare: async ({ request, locals }) => {
+		const form = await request.formData();
+		const shareId = Number(form.get('shareId'));
+		if (!Number.isFinite(shareId)) return fail(400, { error: 'Invalid share' });
+		await revokeMealShare(locals.user!.id, shareId);
+		return { success: true };
 	}
 };

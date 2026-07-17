@@ -2,6 +2,7 @@ import { db } from '$lib/server/db';
 import { nutritionTargets, mealLogs, meals, products } from '$lib/server/db/schema';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { computeMealMacros } from '$lib/server/repositories/meals';
+import { canViewMeal } from '$lib/server/repositories/mealShares';
 
 export type TargetsInput = { calories: number; protein: number; carbs: number; fat: number };
 
@@ -35,10 +36,13 @@ export async function saveTargets(userId: number, input: TargetsInput) {
 /** Logs `portions` of a meal to the diary for `date`. Consumed macros = (recipe total / recipe portions) × eaten,
  *  snapshotted onto the entry so later recipe edits/deletions never rewrite this day. */
 export async function logMealToDay(userId: number, mealId: number, portions: number, date: string) {
+	// The meal may be the user's own or one shared with them — canViewMeal covers both. The log
+	// row is still written under `userId`, so a recipient logs a shared meal into their own diary.
+	if (!(await canViewMeal(userId, mealId))) throw new Error('Meal not found');
 	const [meal] = await db
 		.select({ id: meals.id, name: meals.name, portions: meals.portions })
 		.from(meals)
-		.where(and(eq(meals.id, mealId), eq(meals.userId, userId)));
+		.where(eq(meals.id, mealId));
 	if (!meal) throw new Error('Meal not found');
 
 	const eaten = normalizePortions(portions);

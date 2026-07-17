@@ -17,7 +17,7 @@
 		totalMacros: { calories: number; protein: number; carbs: number; fat: number };
 	};
 
-	let { ingredient }: { ingredient: Ingredient } = $props();
+	let { ingredient, readonly = false }: { ingredient: Ingredient; readonly?: boolean } = $props();
 
 	const isProduct = $derived(ingredient.type === 'product' && ingredient.amount != null);
 	/** The real amount this ingredient uses, e.g. "200 g" for quantity=2 on a 100g product. */
@@ -69,6 +69,7 @@
 				class="mt-0.5"
 			/>
 		</div>
+		{#if !readonly}
 		<div class="flex items-center gap-1 shrink-0">
 			<form
 				method="POST"
@@ -123,9 +124,10 @@
 				</button>
 			</form>
 		</div>
+		{/if}
 	</div>
 
-	{#if editing}
+	{#if editing && !readonly}
 		<form
 			method="POST"
 			action="?/updateIngredientQuantity"

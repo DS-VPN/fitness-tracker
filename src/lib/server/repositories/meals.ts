@@ -1,6 +1,7 @@
 import { db } from '$lib/server/db';
 import { meals, categories, mealCategories, mealIngredients, products } from '$lib/server/db/schema';
 import { createProduct, type ProductInput } from '$lib/server/repositories/products';
+import { canViewMeal } from '$lib/server/repositories/mealShares';
 import { and, eq, inArray, like, asc, desc, sql } from 'drizzle-orm';
 
 export type Macros = { calories: number; protein: number; carbs: number; fat: number };
@@ -153,6 +154,23 @@ export async function getMeal(userId: number, id: number) {
 		.from(meals)
 		.where(and(eq(meals.id, id), eq(meals.userId, userId)));
 	if (!meal) return null;
+	return buildMealDetail(meal);
+}
+
+/** Loads a meal for anyone allowed to VIEW it — the owner, or a user it's been shared with
+ *  (see canViewMeal). Returns the same shape as getMeal plus an `isOwner` flag so the page can
+ *  render read-only for recipients. Returns null when the meal doesn't exist or isn't accessible. */
+export async function getMealForViewer(actingUserId: number, id: number) {
+	const [meal] = await db.select().from(meals).where(eq(meals.id, id));
+	if (!meal) return null;
+	const isOwner = meal.userId === actingUserId;
+	if (!isOwner && !(await canViewMeal(actingUserId, id))) return null;
+	return { ...(await buildMealDetail(meal)), isOwner };
+}
+
+/** Builds the full detail view (categories, ingredients, macros) for an already-loaded meal row. */
+async function buildMealDetail(meal: typeof meals.$inferSelect) {
+	const id = meal.id;
 	const [withCategories] = await attachCategories([meal]);
 
 	const ingredientRows = await db

@@ -146,6 +146,26 @@ export const shoppingListShares = sqliteTable('shopping_list_shares', {
 	index('shopping_list_shares_shared_with_idx').on(t.sharedWithUserId)
 ]);
 
+/** Grants sharedWithUserId read access to some of ownerId's meals. Scope is implied by which
+ *  target column is set: both null = the whole meal library; categoryId set = every meal in that
+ *  category; mealId set = that single meal. A pair can hold many grants (e.g. two categories +
+ *  one meal). Access is read-only for the recipient — using a shared meal (log it, add its
+ *  ingredients to your own list) writes only to the recipient's own data, never the owner's. */
+export const mealShares = sqliteTable('meal_shares', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	ownerId: integer('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	sharedWithUserId: integer('shared_with_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	mealId: integer('meal_id').references(() => meals.id, { onDelete: 'cascade' }),
+	categoryId: integer('category_id').references(() => categories.id, { onDelete: 'cascade' }),
+	createdAt: timestamp('created_at')
+}, (t) => [
+	index('meal_shares_owner_idx').on(t.ownerId),
+	index('meal_shares_shared_with_idx').on(t.sharedWithUserId),
+	index('meal_shares_meal_idx').on(t.mealId),
+	index('meal_shares_category_idx').on(t.categoryId),
+	check('meal_shares_scope_valid', sql`not (${t.mealId} is not null and ${t.categoryId} is not null)`)
+]);
+
 export const exercises = sqliteTable('exercises', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),

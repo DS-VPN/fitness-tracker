@@ -10,12 +10,20 @@
 	import TextField from '$lib/components/TextField.svelte';
 	import HintCard from '$lib/components/HintCard.svelte';
 	import CategoryManageModal from '$lib/components/meals/CategoryManageModal.svelte';
+	import ShareMealsModal from '$lib/components/meals/ShareMealsModal.svelte';
+	import { enhance } from '$app/forms';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
 	let search = $state(data.q);
 	let manageOpen = $state(false);
+	let shareOpen = $state(false);
+
+	// Preserve the owner context (whose library you're browsing) across search/filter navigation.
+	function ownerSuffix(params: URLSearchParams) {
+		if (!data.isOwner) params.set('owner', String(data.ownerId));
+	}
 
 	function updateQuery(next: { q?: string; category?: number | null }) {
 		const nextQ = next.q !== undefined ? next.q : data.q;
@@ -24,6 +32,7 @@
 		const params = new URLSearchParams();
 		if (nextQ) params.set('q', nextQ);
 		if (nextCategory) params.set('category', String(nextCategory));
+		ownerSuffix(params);
 
 		const qs = params.toString();
 		goto(qs ? `/meals?${qs}` : '/meals', { keepFocus: true, replaceState: true, noScroll: true });
@@ -49,8 +58,15 @@
 	function clearFilters() {
 		skipNextDebounce = true;
 		search = '';
-		goto('/meals', { keepFocus: true, replaceState: true, noScroll: true });
+		const params = new URLSearchParams();
+		ownerSuffix(params);
+		const qs = params.toString();
+		goto(qs ? `/meals?${qs}` : '/meals', { keepFocus: true, replaceState: true, noScroll: true });
 	}
+
+	const mealHref = $derived((id: number) =>
+		data.isOwner ? `/meals/${id}` : `/meals/${id}?owner=${data.ownerId}`
+	);
 
 	const grouped = $derived.by(() => {
 		const byCategory = new Map<number, typeof data.meals>();
@@ -83,23 +99,53 @@
 <svelte:head><title>Meals · Fitness Tracker</title></svelte:head>
 
 {#snippet headerActions()}
-	<Button variant="ghost" size="md" onclick={() => (manageOpen = true)}>
-		<Icon name="tag" size={17} />
-		Categories
-	</Button>
-	<Button href="/meals/new" variant="primary" size="md">
-		<Icon name="plus" size={18} />
-		New
-	</Button>
+	{#if data.isOwner}
+		<Button variant="ghost" size="md" onclick={() => (manageOpen = true)}>
+			<Icon name="tag" size={17} />
+			Categories
+		</Button>
+		<Button variant="ghost" size="md" onclick={() => (shareOpen = true)}>Share</Button>
+		<Button href="/meals/new" variant="primary" size="md">
+			<Icon name="plus" size={18} />
+			New
+		</Button>
+	{:else}
+		<form method="POST" action="?/leaveMeals" use:enhance={() => async ({ update }) => { await update(); goto('/meals'); }}>
+			<input type="hidden" name="ownerId" value={data.ownerId} />
+			<Button type="submit" variant="ghost" size="md">Leave</Button>
+		</form>
+	{/if}
 {/snippet}
 
-<PageHeader title="Meals" actions={headerActions} />
+<PageHeader title={data.isOwner ? 'Meals' : `${data.ownerUsername}'s meals`} actions={headerActions} />
 
 <div class="mx-auto max-w-md px-4 pb-4">
-	<HintCard id="meals-intro" icon="meals">
-		Meals are your food library. Build one from ingredients, then <strong>log it to Today</strong>
-		to fill your targets or <strong>send its ingredients to your shopping list</strong>.
-	</HintCard>
+	{#if data.isOwner}
+		<HintCard id="meals-intro" icon="meals">
+			Meals are your food library. Build one from ingredients, then <strong>log it to Today</strong>
+			to fill your targets or <strong>send its ingredients to your shopping list</strong>. Tap
+			<strong>Share</strong> to let a friend see your recipes.
+		</HintCard>
+	{:else}
+		<HintCard id="meals-shared-intro" icon="meals">
+			You're viewing <strong>{data.ownerUsername}'s</strong> shared meals. You can log them to your
+			day and add their ingredients to your shopping list, but only {data.ownerUsername} can edit them.
+		</HintCard>
+	{/if}
+
+	{#if data.sharedWithMe.length > 0}
+		<div class="mt-3 flex gap-2 overflow-x-auto pb-1">
+			<Chip selected={data.isOwner} onclick={() => goto('/meals')}>Mine</Chip>
+			{#each data.sharedWithMe as shared (shared.ownerId)}
+				<Chip
+					selected={!data.isOwner && data.ownerId === shared.ownerId}
+					onclick={() => goto(`/meals?owner=${shared.ownerId}`)}
+				>
+					{shared.ownerUsername}'s meals
+				</Chip>
+			{/each}
+		</div>
+	{/if}
 
 	<TextField name="search" type="search" bind:value={search} placeholder="Search meals or brands" class="mt-3 mb-3" />
 
@@ -112,13 +158,21 @@
 
 	{#if data.meals.length === 0}
 		{#if !hasFilters}
-			<EmptyState
-				icon="meals"
-				title="No meals yet"
-				description="Build your first meal from ingredients — then log it to your day or send it to your shopping list."
-			>
-				<Button href="/meals/new" variant="primary">Add a meal</Button>
-			</EmptyState>
+			{#if data.isOwner}
+				<EmptyState
+					icon="meals"
+					title="No meals yet"
+					description="Build your first meal from ingredients — then log it to your day or send it to your shopping list."
+				>
+					<Button href="/meals/new" variant="primary">Add a meal</Button>
+				</EmptyState>
+			{:else}
+				<EmptyState
+					icon="meals"
+					title="No shared meals"
+					description="{data.ownerUsername} hasn't shared any meals here yet."
+				/>
+			{/if}
 		{:else}
 			<div class="py-10 text-center">
 				<p class="mb-3 text-sm text-[var(--color-text-muted)]">No meals match your search or filter.</p>
@@ -134,7 +188,7 @@
 					</h2>
 					<div class="space-y-2">
 						{#each group.meals as meal (meal.id)}
-							<Card href={`/meals/${meal.id}`}>
+							<Card href={mealHref(meal.id)}>
 								<span class="block truncate font-medium text-[var(--color-text)]">{meal.name}</span>
 								{#if meal.brand}
 									<p class="truncate text-xs text-[var(--color-text-muted)]">{meal.brand}</p>
@@ -155,4 +209,7 @@
 	{/if}
 </div>
 
-<CategoryManageModal bind:open={manageOpen} categories={data.categories} />
+{#if data.isOwner}
+	<CategoryManageModal bind:open={manageOpen} categories={data.categories} />
+	<ShareMealsModal bind:open={shareOpen} shares={data.myShares} categories={data.categories} />
+{/if}
