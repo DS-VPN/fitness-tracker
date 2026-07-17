@@ -20,6 +20,7 @@
 			initial={{
 				name: data.product.name,
 				brand: data.product.brand,
+				barcode: data.product.barcode,
 				servingSize: data.product.servingSize,
 				calories: data.product.calories,
 				protein: data.product.protein,

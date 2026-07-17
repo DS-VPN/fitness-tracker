@@ -5,6 +5,7 @@ import { and, asc, eq, like, or } from 'drizzle-orm';
 export type ProductInput = {
 	name: string;
 	brand?: string | null;
+	barcode?: string | null;
 	servingSize?: string | null;
 	calories: number;
 	protein: number;
@@ -54,4 +55,13 @@ export async function updateProduct(userId: number, id: number, data: ProductInp
 
 export async function deleteProduct(userId: number, id: number) {
 	await db.delete(products).where(and(eq(products.id, id), eq(products.userId, userId)));
+}
+
+/** Local barcode match — a previously saved scan of this product means no API lookup is ever needed again. */
+export async function findProductByBarcode(userId: number, barcode: string) {
+	const [row] = await db
+		.select()
+		.from(products)
+		.where(and(eq(products.userId, userId), eq(products.barcode, barcode)));
+	return row ?? null;
 }

@@ -7,6 +7,7 @@ export async function listSessions(userId: number) {
 		.select({
 			id: workoutSessions.id,
 			date: workoutSessions.date,
+			planId: workoutSessions.planId,
 			notes: workoutSessions.notes,
 			createdAt: workoutSessions.createdAt,
 			setCount: sql<number>`count(${workoutSets.id})`.mapWith(Number),

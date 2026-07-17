@@ -57,6 +57,13 @@
       "when": 1784230811689,
       "tag": "0007_superb_ozymandias",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1784290199487,
+      "tag": "0008_yielding_stardust",
+      "breakpoints": true
     }
   ]
 }

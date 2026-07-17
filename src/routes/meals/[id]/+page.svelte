@@ -8,6 +8,7 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import IngredientRow from '$lib/components/meals/IngredientRow.svelte';
 	import IngredientPicker from '$lib/components/meals/IngredientPicker.svelte';
+	import NumberStepper from '$lib/components/NumberStepper.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -17,6 +18,11 @@
 	let added = $state(false);
 	let addedCount = $state(0);
 	let addedTimeout: ReturnType<typeof setTimeout> | undefined;
+
+	let logPortions = $state(1);
+	let logged = $state(false);
+	let logError = $state('');
+	let loggedTimeout: ReturnType<typeof setTimeout> | undefined;
 
 	function fmt(n: number) {
 		return Number.isInteger(n) ? n : Math.round(n * 10) / 10;
@@ -54,12 +60,59 @@
 			{/each}
 		</div>
 
+		<p class="mt-3 border-t border-[var(--color-border)] pt-3 text-xs text-[var(--color-text-muted)]">
+			Makes {fmt(meal.portions)} {meal.portions === 1 ? 'portion' : 'portions'}
+			{#if meal.portions !== 1}
+				· per portion: <span class="font-medium text-[var(--color-text)]">{fmt(meal.perPortionMacros.calories)} kcal</span>
+				· {fmt(meal.perPortionMacros.protein)}p {fmt(meal.perPortionMacros.carbs)}c {fmt(meal.perPortionMacros.fat)}f
+			{/if}
+		</p>
+
 		{#if meal.categories.length}
 			<div class="mt-3 flex flex-wrap gap-1.5 border-t border-[var(--color-border)] pt-3">
 				{#each meal.categories as c (c.id)}
 					<Chip>{c.name}</Chip>
 				{/each}
 			</div>
+		{/if}
+	</Card>
+
+	<Card>
+		<h2 class="mb-2 text-sm font-medium text-[var(--color-text)]">Log to today</h2>
+		<form
+			method="POST"
+			action="?/logToDay"
+			class="flex items-end gap-2"
+			use:enhance={() => {
+				logError = '';
+				return async ({ result, update }) => {
+					if (result.type === 'success') {
+						logged = true;
+						clearTimeout(loggedTimeout);
+						loggedTimeout = setTimeout(() => (logged = false), 2000);
+					} else if (result.type === 'failure') {
+						logError = (result.data?.error as string) ?? 'Could not log meal';
+					}
+					await update({ reset: false });
+				};
+			}}
+		>
+			<input type="hidden" name="portions" value={logPortions} />
+			<NumberStepper label="Portions eaten" bind:value={logPortions} step={0.5} min={0} class="flex-1" />
+			<Button type="submit" variant="primary" class="h-12">
+				<Icon name="check" size={18} />
+				Log
+			</Button>
+		</form>
+		<p class="mt-1.5 text-xs text-[var(--color-text-muted)]">
+			≈ {Math.round(meal.perPortionMacros.calories * logPortions)} kcal for {logPortions}
+			{logPortions === 1 ? 'portion' : 'portions'}
+		</p>
+		{#if logged}
+			<p class="mt-1 text-sm text-[var(--color-success)]">Logged to today</p>
+		{/if}
+		{#if logError}
+			<p class="mt-1 text-sm text-[var(--color-danger)]">{logError}</p>
 		{/if}
 	</Card>
 

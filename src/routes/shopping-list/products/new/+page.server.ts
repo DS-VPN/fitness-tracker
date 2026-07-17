@@ -28,6 +28,7 @@ function parseProductForm(form: FormData): { data: ProductInput } | { error: str
 		data: {
 			name,
 			brand: str('brand'),
+			barcode: str('barcode'),
 			servingSize: str('servingSize'),
 			calories: num('calories'),
 			protein: num('protein'),

@@ -7,7 +7,11 @@
 
 	type SetData = { id: number; reps: number; weight: number; rpe: number | null; notes: string | null };
 
-	let { set, index }: { set: SetData; index: number } = $props();
+	let {
+		set,
+		index,
+		meetsGoal = false
+	}: { set: SetData; index: number; meetsGoal?: boolean } = $props();
 
 	let editing = $state(false);
 	let editReps = $state(set.reps);
@@ -65,6 +69,7 @@
 		<div class="flex items-baseline gap-2 text-sm min-w-0">
 			<span class="text-[var(--color-text-muted)] w-4 shrink-0">{index + 1}</span>
 			<span class="text-[var(--color-text)] font-medium shrink-0">{set.reps} &times; {set.weight} kg</span>
+			{#if meetsGoal}<span class="text-xs text-[var(--color-success)] font-medium shrink-0">✓ goal</span>{/if}
 			{#if set.rpe != null}<span class="text-xs text-[var(--color-text-muted)] shrink-0">@RPE {set.rpe}</span>{/if}
 			{#if set.notes}<span class="text-xs text-[var(--color-text-muted)] truncate">{set.notes}</span>{/if}
 		</div>

@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import TextField from '$lib/components/TextField.svelte';
+	import NumberField from '$lib/components/NumberField.svelte';
 	import Chip from '$lib/components/Chip.svelte';
 	import Button from '$lib/components/Button.svelte';
 
 	type Initial = {
 		name?: string;
+		portions?: number;
 		categoryIds?: number[];
 	};
 
@@ -22,6 +24,7 @@
 	} = $props();
 
 	let name = $state(initial?.name ?? '');
+	let portions = $state<number | null>(initial?.portions ?? 1);
 	let selectedCategoryIds = $state<number[]>(initial?.categoryIds ?? []);
 
 	let submitting = $state(false);
@@ -45,6 +48,16 @@
 	}}
 >
 	<TextField label="Name" name="name" bind:value={name} required placeholder="e.g. Taco Night" />
+
+	<NumberField
+		label="Portions this recipe makes"
+		name="portions"
+		bind:value={portions}
+		min={0.25}
+		step={0.5}
+		decimalText
+		required
+	/>
 
 	{#if categories.length}
 		<div>

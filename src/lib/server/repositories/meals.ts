@@ -202,17 +202,24 @@ export async function getMeal(userId: number, id: number) {
 	}
 
 	const totalMacros = sumMacros(ingredients.map((i) => i.totalMacros));
+	const recipePortions = withCategories.portions > 0 ? withCategories.portions : 1;
+	const perPortionMacros = scaleMacros(totalMacros, 1 / recipePortions);
 
-	return { ...withCategories, ingredients, totalMacros };
+	return { ...withCategories, ingredients, totalMacros, perPortionMacros };
 }
 
-export async function createMeal(userId: number, name: string, categoryIds: number[]) {
+function normalizeRecipePortions(portions: number | undefined): number {
+	if (portions === undefined || !Number.isFinite(portions) || portions <= 0) return 1;
+	return Math.round(portions * 100) / 100;
+}
+
+export async function createMeal(userId: number, name: string, categoryIds: number[], portions?: number) {
 	const trimmed = name.trim();
 	if (!trimmed) throw new Error('Name is required');
 	const now = new Date();
 	const [row] = await db
 		.insert(meals)
-		.values({ name: trimmed, userId, createdAt: now, updatedAt: now })
+		.values({ name: trimmed, userId, portions: normalizeRecipePortions(portions), createdAt: now, updatedAt: now })
 		.returning();
 
 	const validCategoryIds = await ownedCategoryIds(userId, categoryIds);
@@ -223,12 +230,15 @@ export async function createMeal(userId: number, name: string, categoryIds: numb
 	return row;
 }
 
-export async function updateMealDetails(userId: number, id: number, name: string, categoryIds: number[]) {
+export async function updateMealDetails(userId: number, id: number, name: string, categoryIds: number[], portions?: number) {
 	const trimmed = name.trim();
 	if (!trimmed) throw new Error('Name is required');
 	await assertMealOwned(userId, id);
 
-	await db.update(meals).set({ name: trimmed, updatedAt: new Date() }).where(eq(meals.id, id));
+	await db
+		.update(meals)
+		.set({ name: trimmed, portions: normalizeRecipePortions(portions), updatedAt: new Date() })
+		.where(eq(meals.id, id));
 
 	await db.delete(mealCategories).where(eq(mealCategories.mealId, id));
 	const validCategoryIds = await ownedCategoryIds(userId, categoryIds);

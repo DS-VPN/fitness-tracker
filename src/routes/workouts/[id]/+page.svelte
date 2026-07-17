@@ -193,6 +193,7 @@
 		<div class="space-y-4">
 			{#each sessionExerciseList as group (group.exerciseId)}
 				{@const complete = !!group.targetSets && group.sets.length >= group.targetSets}
+				{@const goal = data.goalsByExercise[group.exerciseId]}
 				<Card>
 					<div class="flex items-center justify-between mb-1">
 						<div class="flex items-baseline gap-2 min-w-0">
@@ -203,11 +204,19 @@
 						<a href={`/exercises/${group.exerciseId}`} class="text-xs text-[var(--color-accent)] shrink-0">Progress</a>
 					</div>
 
-					{#if group.targetSets}
-						<p
-							class={`text-xs mb-1.5 ${complete ? 'text-[var(--color-success)] font-medium' : 'text-[var(--color-text-muted)]'}`}
-						>
-							{#if complete}&check;&nbsp;{/if}{group.sets.length}/{group.targetSets} sets
+					{#if group.targetSets || goal}
+						<p class="text-xs mb-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+							{#if group.targetSets}
+								<span class={complete ? 'text-[var(--color-success)] font-medium' : 'text-[var(--color-text-muted)]'}>
+									{#if complete}&check;&nbsp;{/if}{group.sets.length}/{group.targetSets} sets
+								</span>
+							{/if}
+							{#if goal}
+								<span class="inline-flex items-center gap-1 text-[var(--color-accent)]">
+									<Icon name="target" size={12} />
+									Goal: {goal.targetWeight} kg &times; {goal.targetReps}
+								</span>
+							{/if}
 						</p>
 					{/if}
 					{#if group.notes}
@@ -217,7 +226,11 @@
 					{#if group.sets.length > 0}
 						<div class="divide-y divide-[var(--color-border)] mb-2">
 							{#each group.sets as set, i (set.id)}
-								<SetRow {set} index={i} />
+								<SetRow
+									{set}
+									index={i}
+									meetsGoal={!!goal && set.weight >= goal.targetWeight && set.reps >= goal.targetReps}
+								/>
 							{/each}
 						</div>
 					{/if}

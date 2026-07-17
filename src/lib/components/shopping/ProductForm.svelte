@@ -7,6 +7,7 @@
 	type Initial = {
 		name?: string;
 		brand?: string | null;
+		barcode?: string | null;
 		servingSize?: string | null;
 		calories?: number;
 		protein?: number;
@@ -37,6 +38,7 @@
 
 	let name = $state(initial?.name ?? '');
 	let brand = $state(initial?.brand ?? '');
+	let barcode = $state(initial?.barcode ?? '');
 	let servingSize = $state(initial?.servingSize ?? '');
 	let calories = $state<number | null>(initial?.calories ?? 0);
 	let protein = $state<number | null>(initial?.protein ?? 0);
@@ -65,6 +67,7 @@
 			if (result.type === 'success' && resetAfterSubmit) {
 				onAdded?.((result.data as { product?: unknown } | undefined)?.product);
 				name = '';
+				barcode = '';
 				servingSize = '';
 				calories = 0;
 				protein = 0;
@@ -81,6 +84,12 @@
 >
 	<TextField label="Name" name="name" bind:value={name} required placeholder="e.g. Jarlsberg" />
 	<TextField label="Brand" name="brand" bind:value={brand} placeholder="Optional" />
+	<input type="hidden" name="barcode" value={barcode} />
+	{#if barcode}
+		<p class="text-xs text-[var(--color-text-muted)] -mt-3">
+			Barcode {barcode} — future scans of it will find this product instantly.
+		</p>
+	{/if}
 	<TextField
 		label="Serving size"
 		name="servingSize"

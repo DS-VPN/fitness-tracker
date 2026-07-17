@@ -17,7 +17,10 @@
 		| 'star'
 		| 'logout'
 		| 'tag'
-		| 'list';
+		| 'list'
+		| 'sliders'
+		| 'scan'
+		| 'target';
 
 	let { name, size = 22, class: className = '' }: { name: IconName; size?: number; class?: string } =
 		$props();
@@ -90,5 +93,16 @@
 	{:else if name === 'list'}
 		<path d="M9 6h11M9 12h11M9 18h11" />
 		<path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" />
+	{:else if name === 'sliders'}
+		<path d="M4 21v-7M1 14h6M4 10V3" />
+		<path d="M12 21v-9M9 8h6M12 8V3" />
+		<path d="M20 21v-5M17 16h6M20 12V3" />
+	{:else if name === 'scan'}
+		<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
+		<path d="M8 8v8M12 8v8M16 8v8" />
+	{:else if name === 'target'}
+		<circle cx="12" cy="12" r="8.5" />
+		<circle cx="12" cy="12" r="4.5" />
+		<circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
 	{/if}
 </svg>

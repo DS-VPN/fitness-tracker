@@ -3,35 +3,25 @@
 	import Card from '$lib/components/Card.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import MacroBadge from '$lib/components/MacroBadge.svelte';
+	import ProgressRing from '$lib/components/nutrition/ProgressRing.svelte';
+	import MacroBar from '$lib/components/nutrition/MacroBar.svelte';
+	import TargetsModal from '$lib/components/nutrition/TargetsModal.svelte';
+	import LogFoodModal from '$lib/components/nutrition/LogFoodModal.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
-	let justAdded = $state<Set<number>>(new Set());
-	const timeouts = new Map<number, ReturnType<typeof setTimeout>>();
+	let targetsOpen = $state(false);
+	let logOpen = $state(false);
 
-	function flash(mealId: number) {
-		justAdded = new Set(justAdded).add(mealId);
-		clearTimeout(timeouts.get(mealId));
-		timeouts.set(
-			mealId,
-			setTimeout(() => {
-				const next = new Set(justAdded);
-				next.delete(mealId);
-				justAdded = next;
-			}, 1500)
-		);
-	}
+	const kcalRemaining = $derived(data.targets ? Math.round(data.targets.calories - data.summary.calories) : 0);
 
-	function formatDate(d: string) {
-		const date = new Date(`${d}T00:00:00`);
-		return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-	}
-
-	// No rounding — weights are stored and shown at whatever precision the user actually entered.
 	function fmtWeight(n: number) {
 		return n;
+	}
+
+	function fmtPortions(n: number) {
+		return Number.isInteger(n) ? n : n;
 	}
 
 	function trend(history: { topWeight: number }[]) {
@@ -50,7 +40,7 @@
 	<div class="flex items-center justify-between">
 		<div>
 			<p class="text-sm text-[var(--color-text-muted)]">Welcome back, {data.username}</p>
-			<h1 class="text-2xl text-[var(--color-text)]">Fitness Tracker</h1>
+			<h1 class="text-2xl text-[var(--color-text)]">Today</h1>
 		</div>
 		<form method="POST" action="/logout">
 			<button
@@ -63,35 +53,172 @@
 		</form>
 	</div>
 
-	<form method="POST" action="/workouts?/start" use:enhance>
-		<Button type="submit" variant="primary" size="lg" full class="w-full">
-			<Icon name="dumbbell" size={20} />
-			Start workout
-		</Button>
-	</form>
-
-	<div class="grid grid-cols-2 gap-3">
-		<Card href="/shopping-list" class="flex flex-col gap-1">
-			<Icon name="cart" size={20} class="text-[var(--color-accent)]" />
-			<span class="text-lg font-medium text-[var(--color-text)]">{data.shoppingCount}</span>
-			<span class="text-xs text-[var(--color-text-muted)]"
-				>{data.shoppingCount === 1 ? 'item to buy' : 'items to buy'}</span
+	<!-- Nutrition dashboard — the primary content -->
+	<Card>
+		<div class="flex items-center justify-between mb-3">
+			<h2 class="text-sm font-medium text-[var(--color-text-muted)]">Today's nutrition</h2>
+			<button
+				type="button"
+				aria-label="Edit daily targets"
+				onclick={() => (targetsOpen = true)}
+				class="h-8 w-8 flex items-center justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-alt)]"
 			>
-		</Card>
-		{#if data.lastSession}
-			<Card href={`/workouts/${data.lastSession.id}`} class="flex flex-col gap-1">
-				<Icon name="chart" size={20} class="text-[var(--color-accent)]" />
-				<span class="text-sm font-medium text-[var(--color-text)]">{formatDate(data.lastSession.date)}</span>
-				<span class="text-xs text-[var(--color-text-muted)]">
-					{data.lastSession.exerciseCount} exercise{data.lastSession.exerciseCount === 1 ? '' : 's'} &middot; {data.lastSession.setCount} set{data.lastSession.setCount === 1 ? '' : 's'}
-				</span>
+				<Icon name="sliders" size={16} />
+			</button>
+		</div>
+
+		{#if data.targets}
+			<div class="flex items-center gap-4">
+				<div class="flex flex-col items-center gap-1">
+					<ProgressRing value={data.summary.calories} target={data.targets.calories} />
+					<p
+						class={`text-xs ${kcalRemaining < 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-muted)]'}`}
+					>
+						{#if kcalRemaining >= 0}{kcalRemaining} kcal left{:else}{-kcalRemaining} kcal over{/if}
+					</p>
+				</div>
+				<div class="flex-1 space-y-3 min-w-0">
+					<MacroBar label="Protein" value={data.summary.protein} target={data.targets.protein} />
+					<MacroBar label="Carbs" value={data.summary.carbs} target={data.targets.carbs} />
+					<MacroBar label="Fat" value={data.summary.fat} target={data.targets.fat} />
+				</div>
+			</div>
+		{:else}
+			<div class="text-center py-4">
+				{#if data.summary.calories > 0}
+					<p class="text-sm text-[var(--color-text)] mb-1">
+						Logged today: <span class="font-medium">{Math.round(data.summary.calories)} kcal</span>
+					</p>
+					<p class="text-xs text-[var(--color-text-muted)] mb-3">
+						{Math.round(data.summary.protein)}g protein · {Math.round(data.summary.carbs)}g carbs · {Math.round(
+							data.summary.fat
+						)}g fat
+					</p>
+				{:else}
+					<p class="text-sm text-[var(--color-text-muted)] mb-3">
+						Set daily targets for calories and macros to start tracking your day.
+					</p>
+				{/if}
+				<Button variant="primary" onclick={() => (targetsOpen = true)}>Set your daily targets</Button>
+			</div>
+		{/if}
+	</Card>
+
+	<Button variant="primary" size="lg" full class="w-full" onclick={() => (logOpen = true)}>
+		<Icon name="plus" size={20} />
+		Log food
+	</Button>
+
+	{#if data.entries.length > 0}
+		<div>
+			<h2 class="mb-2 px-1 text-sm font-medium text-[var(--color-text-muted)]">Today's meals</h2>
+			<Card padded={false} class="divide-y divide-[var(--color-border)]">
+				{#each data.entries as entry (entry.id)}
+					<div class="flex items-center gap-2 px-4 py-2.5">
+						<div class="flex-1 min-w-0">
+							<p class="truncate text-sm text-[var(--color-text)]">
+								{entry.name}{#if entry.brand}<span class="text-[var(--color-text-muted)]"> · {entry.brand}</span>{/if}
+							</p>
+							<p class="text-xs text-[var(--color-text-muted)]">
+								×{fmtPortions(entry.portions)} · {Math.round(entry.calories)} kcal · {Math.round(entry.protein)}p
+								{Math.round(entry.carbs)}c {Math.round(entry.fat)}f
+							</p>
+						</div>
+						<form method="POST" action="?/deleteLog" use:enhance>
+							<input type="hidden" name="id" value={entry.id} />
+							<button
+								type="submit"
+								aria-label={`Remove ${entry.name}`}
+								class="h-8 w-8 flex items-center justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger)]"
+							>
+								<Icon name="x" size={16} />
+							</button>
+						</form>
+					</div>
+				{/each}
+			</Card>
+		</div>
+	{/if}
+
+	<div>
+		<h2 class="mb-2 px-1 text-sm font-medium text-[var(--color-text-muted)]">Today's workout</h2>
+		{#if data.todayWorkout}
+			<Card href={`/workouts/${data.todayWorkout.id}`}>
+				<div class="flex items-center justify-between">
+					<div class="min-w-0">
+						<p class="font-medium text-[var(--color-text)] truncate">
+							{data.todayWorkout.planName ?? 'Workout in progress'}
+						</p>
+						<p class="text-sm text-[var(--color-text-muted)] mt-0.5">
+							{#if data.todayWorkout.exercisesTotal}
+								{data.todayWorkout.exercisesDone}/{data.todayWorkout.exercisesTotal} exercises
+							{:else}
+								{data.todayWorkout.exercisesDone}
+								{data.todayWorkout.exercisesDone === 1 ? 'exercise' : 'exercises'}
+							{/if}
+							·
+							{#if data.todayWorkout.setsTarget}
+								{data.todayWorkout.setsDone}/{data.todayWorkout.setsTarget} sets
+							{:else}
+								{data.todayWorkout.setsDone} {data.todayWorkout.setsDone === 1 ? 'set' : 'sets'}
+							{/if}
+						</p>
+					</div>
+					<span class="flex items-center gap-1 text-sm text-[var(--color-accent)] shrink-0">
+						Continue <Icon name="chevron-right" size={16} />
+					</span>
+				</div>
 			</Card>
 		{:else}
-			<Card href="/workouts" class="flex flex-col gap-1 justify-center">
-				<span class="text-sm text-[var(--color-text-muted)]">No workouts logged yet</span>
-			</Card>
+			<div class="flex gap-2">
+				<form method="POST" action="/workouts?/start" use:enhance class="flex-1">
+					<Button type="submit" variant="secondary" full class="w-full">
+						<Icon name="dumbbell" size={18} />
+						Start workout
+					</Button>
+				</form>
+				<Button href="/workouts/plans" variant="ghost">From a plan</Button>
+			</div>
 		{/if}
 	</div>
+
+	{#if data.goals.length > 0}
+		<div>
+			<h2 class="mb-2 px-1 text-sm font-medium text-[var(--color-text-muted)]">Goal progress</h2>
+			<div class="space-y-2">
+				{#each data.goals as goal (goal.exerciseId)}
+					<Card href={`/exercises/${goal.exerciseId}`}>
+						<div class="flex items-center justify-between gap-2 mb-1.5">
+							<span class="font-medium text-[var(--color-text)] truncate">
+								{goal.exerciseName}{#if goal.exerciseBrand}<span class="text-[var(--color-text-muted)]"> — {goal.exerciseBrand}</span>{/if}
+							</span>
+							<span
+								class={`text-sm shrink-0 tabular-nums ${goal.achieved ? 'text-[var(--color-success)] font-medium' : 'text-[var(--color-text-muted)]'}`}
+							>
+								{#if goal.achieved}✓ done{:else}{Math.round(goal.progress * 100)}%{/if}
+							</span>
+						</div>
+						<p class="text-xs text-[var(--color-text-muted)] mb-1.5">
+							{#if goal.bestQualifying}
+								Best {fmtWeight(goal.bestQualifying.weight)} kg × {goal.bestQualifying.reps}
+							{:else if goal.bestOverall}
+								Best {fmtWeight(goal.bestOverall.weight)} kg × {goal.bestOverall.reps} (below rep target)
+							{:else}
+								No sets logged yet
+							{/if}
+							· Goal {fmtWeight(goal.targetWeight)} kg × {goal.targetReps}
+						</p>
+						<div class="h-1.5 rounded-full bg-[var(--color-surface-alt)] overflow-hidden">
+							<div
+								class={`h-full rounded-full ${goal.achieved ? 'bg-[var(--color-success)]' : 'bg-[var(--color-accent)]'}`}
+								style={`width:${goal.progress * 100}%`}
+							></div>
+						</div>
+					</Card>
+				{/each}
+			</div>
+		</div>
+	{/if}
 
 	{#if data.exerciseProgress.length > 0}
 		<div>
@@ -115,57 +242,7 @@
 			</div>
 		</div>
 	{/if}
-
-	<div>
-		<div class="flex items-center justify-between mb-2 px-1">
-			<h2 class="text-sm font-medium text-[var(--color-text-muted)]">Quick add to shopping list</h2>
-			<a href="/meals" class="text-xs text-[var(--color-accent)]">View all</a>
-		</div>
-
-		{#if data.recentMeals.length === 0}
-			<Card class="text-center py-6">
-				<p class="text-sm text-[var(--color-text-muted)] mb-3">No meals yet.</p>
-				<Button href="/meals/new" variant="secondary">Add your first meal</Button>
-			</Card>
-		{:else}
-			<div class="space-y-2">
-				{#each data.recentMeals as meal (meal.id)}
-					<Card class="flex items-center gap-3">
-						<a href={`/meals/${meal.id}`} class="flex-1 min-w-0">
-							<p class="font-medium text-[var(--color-text)] truncate">{meal.name}</p>
-							<MacroBadge
-								calories={meal.totalMacros.calories}
-								protein={meal.totalMacros.protein}
-								carbs={meal.totalMacros.carbs}
-								fat={meal.totalMacros.fat}
-							/>
-						</a>
-						<form
-							method="POST"
-							action="?/quickAdd"
-							use:enhance={() => {
-								return async ({ result, update }) => {
-									if (result.type === 'success') flash(meal.id);
-									await update({ reset: false });
-								};
-							}}
-						>
-							<input type="hidden" name="mealId" value={meal.id} />
-							<button
-								type="submit"
-								aria-label={`Add ${meal.name} to shopping list`}
-								class={`h-10 w-10 shrink-0 flex items-center justify-center rounded-full transition-colors ${
-									justAdded.has(meal.id)
-										? 'bg-[var(--color-success)] text-white'
-										: 'bg-[var(--color-accent-soft)] text-[var(--color-accent)] hover:brightness-95'
-								}`}
-							>
-								<Icon name={justAdded.has(meal.id) ? 'check' : 'plus'} size={18} />
-							</button>
-						</form>
-					</Card>
-				{/each}
-			</div>
-		{/if}
-	</div>
 </div>
+
+<TargetsModal bind:open={targetsOpen} targets={data.targets} />
+<LogFoodModal bind:open={logOpen} meals={data.logMeals} products={data.logProducts} />

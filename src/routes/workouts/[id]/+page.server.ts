@@ -10,6 +10,7 @@ import {
 } from '$lib/server/repositories/workouts';
 import { listExercises, createExercise } from '$lib/server/repositories/exercises';
 import { getPlan } from '$lib/server/repositories/workoutPlans';
+import { goalsByExercise } from '$lib/server/repositories/exerciseGoals';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -38,7 +39,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		exerciseGroups: result.exerciseGroups,
 		allExercises,
 		lastSetsByExercise,
-		planExercises
+		planExercises,
+		goalsByExercise: await goalsByExercise(userId)
 	};
 };
 

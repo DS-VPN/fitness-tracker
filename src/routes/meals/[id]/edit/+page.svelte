@@ -16,6 +16,7 @@
 			categories={data.categories}
 			initial={{
 				name: data.meal.name,
+				portions: data.meal.portions,
 				categoryIds: data.meal.categories.map((c) => c.id)
 			}}
 			submitLabel="Save changes"

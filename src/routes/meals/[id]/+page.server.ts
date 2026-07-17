@@ -12,6 +12,9 @@ import {
 } from '$lib/server/repositories/meals';
 import { listProducts } from '$lib/server/repositories/products';
 import { addMealToList, addProductToList, addProductsToList } from '$lib/server/repositories/shoppingList';
+import { logMealToDay } from '$lib/server/repositories/nutritionLog';
+import { todayIso } from '$lib/utils/todayIso';
+import { parseDecimal } from '$lib/utils/parseDecimal';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -35,6 +38,18 @@ function parseQuantity(form: FormData): number {
 }
 
 export const actions: Actions = {
+	logToDay: async ({ request, params, locals }) => {
+		const id = Number(params.id);
+		const form = await request.formData();
+		const portions = parseDecimal(String(form.get('portions') ?? '1'));
+		try {
+			await logMealToDay(locals.user!.id, id, portions, todayIso());
+		} catch (e) {
+			return fail(400, { error: e instanceof Error ? e.message : 'Could not log meal' });
+		}
+		return { logged: true };
+	},
+
 	addToList: async ({ params, locals }) => {
 		const id = Number(params.id);
 		const count = await addMealToList(locals.user!.id, id);

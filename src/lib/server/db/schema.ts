@@ -30,6 +30,8 @@ export const meals = sqliteTable('meals', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
 	name: text('name').notNull(),
+	/** How many portions/servings this recipe is designed to make — per-portion macros = total / portions. */
+	portions: real('portions').notNull().default(1),
 	brand: text('brand'),
 	servingSize: text('serving_size'),
 	calories: real('calories').notNull().default(0),
@@ -56,6 +58,8 @@ export const products = sqliteTable('products', {
 	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
 	name: text('name').notNull(),
 	brand: text('brand'),
+	/** EAN/UPC from barcode scanning — lets a repeat scan match this product locally without any API lookup. */
+	barcode: text('barcode'),
 	servingSize: text('serving_size'),
 	calories: real('calories').notNull().default(0),
 	protein: real('protein').notNull().default(0),
@@ -66,7 +70,11 @@ export const products = sqliteTable('products', {
 	sodium: real('sodium'),
 	createdAt: timestamp('created_at'),
 	updatedAt: timestamp('updated_at')
-}, (t) => [index('products_user_idx').on(t.userId), index('products_name_idx').on(t.name)]);
+}, (t) => [
+	index('products_user_idx').on(t.userId),
+	index('products_name_idx').on(t.name),
+	index('products_barcode_idx').on(t.barcode)
+]);
 
 /** An ingredient in a meal's recipe: exactly one of productId/subMealId is set (enforced below and in the repo layer). */
 export const mealIngredients = sqliteTable('meal_ingredients', {
@@ -163,3 +171,53 @@ export const workoutSets = sqliteTable('workout_sets', {
 	index('workout_sets_session_idx').on(t.sessionId),
 	index('workout_sets_exercise_idx').on(t.exerciseId)
 ]);
+
+/** Daily macro targets. `label` is the hook for per-day-type targets later (e.g. 'training'/'rest');
+ *  v1 only ever reads and writes the 'default' row. */
+export const nutritionTargets = sqliteTable('nutrition_targets', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	label: text('label').notNull().default('default'),
+	calories: real('calories').notNull(),
+	protein: real('protein').notNull(),
+	carbs: real('carbs').notNull(),
+	fat: real('fat').notNull(),
+	updatedAt: timestamp('updated_at')
+}, (t) => [unique('nutrition_targets_user_label_unique').on(t.userId, t.label)]);
+
+/** The food diary. Each entry snapshots name and CONSUMED macros (already multiplied by portions) at log
+ *  time, so editing/deleting a recipe never rewrites past days and a day sums with one query. mealId/
+ *  productId are provenance only (at most one set; may both become null after the source is deleted). */
+export const mealLogs = sqliteTable('meal_logs', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	date: text('date').notNull(),
+	name: text('name').notNull(),
+	brand: text('brand'),
+	portions: real('portions').notNull().default(1),
+	calories: real('calories').notNull(),
+	protein: real('protein').notNull(),
+	carbs: real('carbs').notNull(),
+	fat: real('fat').notNull(),
+	mealId: integer('meal_id').references(() => meals.id, { onDelete: 'set null' }),
+	productId: integer('product_id').references(() => products.id, { onDelete: 'set null' }),
+	createdAt: timestamp('created_at')
+}, (t) => [index('meal_logs_user_date_idx').on(t.userId, t.date)]);
+
+/** One active strength goal per exercise (upsert semantics — the UNIQUE is droppable later for goal history). */
+export const exerciseGoals = sqliteTable('exercise_goals', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	exerciseId: integer('exercise_id').notNull().references(() => exercises.id, { onDelete: 'cascade' }),
+	targetWeight: real('target_weight').notNull(),
+	targetReps: integer('target_reps').notNull(),
+	createdAt: timestamp('created_at'),
+	updatedAt: timestamp('updated_at')
+}, (t) => [unique('exercise_goals_exercise_unique').on(t.exerciseId)]);
+
+/** Server-side cache of Open Food Facts barcode lookups (global product data, deliberately not per-user).
+ *  Misses are cached too, so repeat scans of an unknown code don't re-hit the API. */
+export const barcodeCache = sqliteTable('barcode_cache', {
+	barcode: text('barcode').primaryKey(),
+	payload: text('payload').notNull(),
+	fetchedAt: timestamp('fetched_at')
+});

@@ -1,6 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { getMeal, updateMealDetails } from '$lib/server/repositories/meals';
 import { listCategories } from '$lib/server/repositories/categories';
+import { parseDecimal } from '$lib/utils/parseDecimal';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -19,6 +20,7 @@ export const actions: Actions = {
 		const id = Number(params.id);
 		const form = await request.formData();
 		const name = String(form.get('name') ?? '').trim();
+		const portions = parseDecimal(String(form.get('portions') ?? '1'));
 		const categoryIds = form
 			.getAll('categoryIds')
 			.map((v) => Number(v))
@@ -26,7 +28,7 @@ export const actions: Actions = {
 
 		if (!name) return fail(400, { error: 'Name is required' });
 
-		await updateMealDetails(locals.user!.id, id, name, categoryIds);
+		await updateMealDetails(locals.user!.id, id, name, categoryIds, portions);
 		throw redirect(303, `/meals/${id}`);
 	}
 };
