@@ -16,7 +16,7 @@
 </script>
 
 <nav
-	class="fixed bottom-0 inset-x-0 z-30 flex bg-[var(--color-surface)]/95 backdrop-blur-sm border-t border-[var(--color-border)] pb-[env(safe-area-inset-bottom)]"
+	class="shrink-0 flex bg-[var(--color-surface)] border-t border-[var(--color-border)] pb-[env(safe-area-inset-bottom)]"
 >
 	{#each items as item (item.href)}
 		{@const active = isActive(item.href)}
