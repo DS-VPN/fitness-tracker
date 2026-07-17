@@ -20,7 +20,7 @@
 
 <PageHeader title="Plans" back="/workouts" actions={headerActions} />
 
-<div class="px-4 space-y-3">
+<div class="mx-auto max-w-md px-4 space-y-3">
 	{#if data.plans.length === 0}
 		<EmptyState
 			icon="dumbbell"

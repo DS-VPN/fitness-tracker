@@ -11,6 +11,16 @@
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 		<meta name="apple-mobile-web-app-title" content="Fitness" />
+		<script>
+			// Apply the saved theme before first paint to avoid a flash. 'light'/'dark' set
+			// data-theme; anything else (no value = 'system') falls back to prefers-color-scheme.
+			(function () {
+				try {
+					var t = localStorage.getItem('theme');
+					if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+				} catch (e) {}
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

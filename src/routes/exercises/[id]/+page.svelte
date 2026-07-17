@@ -62,7 +62,7 @@
 	back="/exercises"
 />
 
-<div class="px-4 space-y-4">
+<div class="mx-auto max-w-md px-4 space-y-4">
 	<Card>
 		<div class="flex items-center justify-between mb-1">
 			<h2 class="text-sm font-medium text-[var(--color-text)] flex items-center gap-1.5">

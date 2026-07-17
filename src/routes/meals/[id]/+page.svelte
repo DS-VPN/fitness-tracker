@@ -117,30 +117,8 @@
 		{/if}
 	</Card>
 
-	<div>
-		<h2 class="mb-2 px-1 text-sm font-medium text-[var(--color-text-muted)]">Ingredients</h2>
-		{#if meal.ingredients.length === 0}
-			<EmptyState
-				icon="meals"
-				title="No ingredients yet"
-				description="Add a product or another meal below to build this recipe."
-			/>
-		{:else}
-			<Card>
-				<div class="divide-y divide-[var(--color-border)]">
-					{#each meal.ingredients as ingredient (ingredient.id)}
-						<IngredientRow {ingredient} />
-					{/each}
-				</div>
-			</Card>
-		{/if}
-		<Button variant="secondary" full size="lg" class="mt-3 w-full" onclick={() => (pickerOpen = true)}>
-			<Icon name="plus" size={18} />
-			Add ingredient
-		</Button>
-	</div>
-
-	<div>
+	<Card>
+		<h2 class="mb-2 text-sm font-medium text-[var(--color-text)]">Add to shopping list</h2>
 		<form
 			method="POST"
 			action="?/addToList"
@@ -167,12 +145,35 @@
 		{#if added}
 			<p class="mt-2 text-center text-sm text-[var(--color-success)]">
 				{#if addedCount > 0}
-					Added {addedCount} {addedCount === 1 ? 'item' : 'items'}
+					Added {addedCount} {addedCount === 1 ? 'item' : 'items'} to your shopping list
 				{:else}
 					This meal has no ingredients yet
 				{/if}
 			</p>
 		{/if}
+	</Card>
+
+	<div>
+		<h2 class="mb-2 px-1 text-sm font-medium text-[var(--color-text-muted)]">Ingredients</h2>
+		{#if meal.ingredients.length === 0}
+			<EmptyState
+				icon="meals"
+				title="No ingredients yet"
+				description="Add a product or another meal below to build this recipe."
+			/>
+		{:else}
+			<Card>
+				<div class="divide-y divide-[var(--color-border)]">
+					{#each meal.ingredients as ingredient (ingredient.id)}
+						<IngredientRow {ingredient} />
+					{/each}
+				</div>
+			</Card>
+		{/if}
+		<Button variant="secondary" full size="lg" class="mt-3 w-full" onclick={() => (pickerOpen = true)}>
+			<Icon name="plus" size={18} />
+			Add ingredient
+		</Button>
 	</div>
 
 	<form

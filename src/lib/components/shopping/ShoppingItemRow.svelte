@@ -121,7 +121,14 @@
 		<div class="mt-1.5 ml-[52px] space-y-1 border-l border-[var(--color-border)] pl-3">
 			{#each item.sources as source (source.mealId ?? 'direct')}
 				<div class="flex items-center justify-between gap-2">
-					<span class="text-xs text-[var(--color-text-muted)]">{source.label} {source.amount}{item.unit}</span>
+					<span class="text-xs text-[var(--color-text-muted)]">
+							{#if source.mealId != null}
+								<a href={`/meals/${source.mealId}`} class="text-[var(--color-accent)] hover:underline">{source.label}</a>
+							{:else}
+								{source.label}
+							{/if}
+							{source.amount}{item.unit}
+						</span>
 					<form method="POST" action="?/removeMealSource" use:enhance>
 						<input type="hidden" name="id" value={item.id} />
 						<input type="hidden" name="ownerId" value={ownerId} />

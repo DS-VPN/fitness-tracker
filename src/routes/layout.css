@@ -34,8 +34,12 @@
 	color-scheme: light;
 }
 
+/* Dark tokens. Applied when the user explicitly picks dark (data-theme="dark"), or when
+   they've made no choice (no data-theme) and the OS prefers dark. Picking light sets
+   data-theme="light", which keeps the :root light tokens above and opts out of the media
+   query below. The inline script in app.html sets data-theme before first paint. */
 @media (prefers-color-scheme: dark) {
-	:root {
+	:root:not([data-theme]) {
 		--color-bg: #201a15;
 		--color-surface: #2a231c;
 		--color-surface-alt: #332a21;
@@ -52,6 +56,24 @@
 
 		color-scheme: dark;
 	}
+}
+
+:root[data-theme='dark'] {
+	--color-bg: #201a15;
+	--color-surface: #2a231c;
+	--color-surface-alt: #332a21;
+	--color-border: #453a2e;
+	--color-text: #f2ece1;
+	--color-text-muted: #b3a692;
+	--color-accent: #e07a44;
+	--color-accent-hover: #ee9463;
+	--color-accent-soft: #4a3020;
+	--color-danger: #e0725a;
+	--color-danger-soft: #4a2a22;
+	--color-success: #7fb187;
+	--color-success-soft: #263626;
+
+	color-scheme: dark;
 }
 
 @theme {

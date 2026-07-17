@@ -39,7 +39,7 @@
 
 <PageHeader title={data.plan.name} back="/workouts/plans" actions={headerActions} />
 
-<div class="px-4 space-y-4">
+<div class="mx-auto max-w-md px-4 space-y-4">
 	<Card>
 		<form
 			method="POST"

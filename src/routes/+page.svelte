@@ -7,12 +7,15 @@
 	import MacroBar from '$lib/components/nutrition/MacroBar.svelte';
 	import TargetsModal from '$lib/components/nutrition/TargetsModal.svelte';
 	import LogFoodModal from '$lib/components/nutrition/LogFoodModal.svelte';
+	import SettingsModal from '$lib/components/SettingsModal.svelte';
+	import HintCard from '$lib/components/HintCard.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
 	let targetsOpen = $state(false);
 	let logOpen = $state(false);
+	let settingsOpen = $state(false);
 
 	const kcalRemaining = $derived(data.targets ? Math.round(data.targets.calories - data.summary.calories) : 0);
 
@@ -42,16 +45,20 @@
 			<p class="text-sm text-[var(--color-text-muted)]">Welcome back, {data.username}</p>
 			<h1 class="text-2xl text-[var(--color-text)]">Today</h1>
 		</div>
-		<form method="POST" action="/logout">
-			<button
-				type="submit"
-				aria-label="Sign out"
-				class="h-10 w-10 flex items-center justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-alt)]"
-			>
-				<Icon name="logout" size={20} />
-			</button>
-		</form>
+		<button
+			type="button"
+			aria-label="Settings"
+			onclick={() => (settingsOpen = true)}
+			class="h-10 w-10 flex items-center justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-alt)]"
+		>
+			<Icon name="sliders" size={20} />
+		</button>
 	</div>
+
+	<HintCard id="home-intro" icon="home">
+		This is your day at a glance. Log food to fill your targets, start a workout, and
+		track goals — everything you add across the app shows up here.
+	</HintCard>
 
 	<!-- Nutrition dashboard — the primary content -->
 	<Card>
@@ -115,7 +122,7 @@
 			<Card padded={false} class="divide-y divide-[var(--color-border)]">
 				{#each data.entries as entry (entry.id)}
 					<div class="flex items-center gap-2 px-4 py-2.5">
-						<div class="flex-1 min-w-0">
+						{#snippet entryBody()}
 							<p class="truncate text-sm text-[var(--color-text)]">
 								{entry.name}{#if entry.brand}<span class="text-[var(--color-text-muted)]"> · {entry.brand}</span>{/if}
 							</p>
@@ -123,7 +130,15 @@
 								×{fmtPortions(entry.portions)} · {Math.round(entry.calories)} kcal · {Math.round(entry.protein)}p
 								{Math.round(entry.carbs)}c {Math.round(entry.fat)}f
 							</p>
-						</div>
+						{/snippet}
+						{#if entry.mealId}
+							<a href={`/meals/${entry.mealId}`} class="flex-1 min-w-0 flex items-center gap-1 group">
+								<span class="flex-1 min-w-0">{@render entryBody()}</span>
+								<Icon name="chevron-right" size={15} class="shrink-0 text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
+							</a>
+						{:else}
+							<div class="flex-1 min-w-0">{@render entryBody()}</div>
+						{/if}
 						<form method="POST" action="?/deleteLog" use:enhance>
 							<input type="hidden" name="id" value={entry.id} />
 							<button
@@ -246,3 +261,4 @@
 
 <TargetsModal bind:open={targetsOpen} targets={data.targets} />
 <LogFoodModal bind:open={logOpen} meals={data.logMeals} products={data.logProducts} />
+<SettingsModal bind:open={settingsOpen} />

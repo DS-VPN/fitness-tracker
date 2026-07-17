@@ -8,6 +8,7 @@
 	import MacroBadge from '$lib/components/MacroBadge.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import TextField from '$lib/components/TextField.svelte';
+	import HintCard from '$lib/components/HintCard.svelte';
 	import CategoryManageModal from '$lib/components/meals/CategoryManageModal.svelte';
 	import type { PageData } from './$types';
 
@@ -82,9 +83,9 @@
 <svelte:head><title>Meals · Fitness Tracker</title></svelte:head>
 
 {#snippet headerActions()}
-	<Button variant="ghost" size="icon" onclick={() => (manageOpen = true)}>
-		<Icon name="tag" size={20} />
-		<span class="sr-only">Manage categories</span>
+	<Button variant="ghost" size="md" onclick={() => (manageOpen = true)}>
+		<Icon name="tag" size={17} />
+		Categories
 	</Button>
 	<Button href="/meals/new" variant="primary" size="md">
 		<Icon name="plus" size={18} />
@@ -95,7 +96,12 @@
 <PageHeader title="Meals" actions={headerActions} />
 
 <div class="mx-auto max-w-md px-4 pb-4">
-	<TextField name="search" type="search" bind:value={search} placeholder="Search meals or brands" class="mb-3" />
+	<HintCard id="meals-intro" icon="meals">
+		Meals are your food library. Build one from ingredients, then <strong>log it to Today</strong>
+		to fill your targets or <strong>send its ingredients to your shopping list</strong>.
+	</HintCard>
+
+	<TextField name="search" type="search" bind:value={search} placeholder="Search meals or brands" class="mt-3 mb-3" />
 
 	<div class="mb-4 flex gap-2 overflow-x-auto pb-1">
 		<Chip selected={data.categoryId === null} onclick={() => selectCategory(null)}>All</Chip>
@@ -109,7 +115,7 @@
 			<EmptyState
 				icon="meals"
 				title="No meals yet"
-				description="Add your first meal to start building your library."
+				description="Build your first meal from ingredients — then log it to your day or send it to your shopping list."
 			>
 				<Button href="/meals/new" variant="primary">Add a meal</Button>
 			</EmptyState>

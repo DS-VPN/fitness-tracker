@@ -8,6 +8,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Chip from '$lib/components/Chip.svelte';
 	import TextField from '$lib/components/TextField.svelte';
+	import HintCard from '$lib/components/HintCard.svelte';
 	import ShoppingItemRow from '$lib/components/shopping/ShoppingItemRow.svelte';
 	import ShareListModal from '$lib/components/shopping/ShareListModal.svelte';
 	import type { PageData, ActionData } from './$types';
@@ -55,7 +56,15 @@
 	{/snippet}
 </PageHeader>
 
-<div class="px-4 space-y-6">
+<div class="mx-auto max-w-md px-4 space-y-6">
+	{#if data.isOwner}
+		<HintCard id="shopping-intro" icon="cart">
+			Items you send from a <strong>meal</strong> land in "From your meals" and stay in
+			sync with that recipe. Add anything else by hand below, and <strong>Share</strong>
+			your list so others can check things off with you.
+		</HintCard>
+	{/if}
+
 	{#if data.sharedWithMe.length > 0}
 		<div class="flex gap-2 overflow-x-auto pb-1">
 			<Chip selected={data.isOwner} onclick={() => goto('/shopping-list')}>Mine</Chip>
@@ -74,8 +83,12 @@
 		<EmptyState
 			icon="cart"
 			title="Your list is empty"
-			description="Add items from a meal, or add one below."
-		/>
+			description="Open any meal and tap “Add ingredients to shopping list,” or add an item by hand below."
+		>
+			{#if data.isOwner}
+				<Button href="/meals" variant="secondary">Browse meals</Button>
+			{/if}
+		</EmptyState>
 	{:else}
 		{#if data.fromMeals.length > 0}
 			<section>

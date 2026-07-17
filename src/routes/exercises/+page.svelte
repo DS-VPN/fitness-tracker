@@ -47,7 +47,7 @@
 	{/snippet}
 </PageHeader>
 
-<div class="px-4 space-y-3">
+<div class="mx-auto max-w-md px-4 space-y-3">
 	{#if data.exercises.length === 0}
 		<EmptyState icon="dumbbell" title="No exercises yet" description="Add your first exercise to start tracking sets.">
 			<Button variant="primary" onclick={() => (addOpen = true)}>Add exercise</Button>

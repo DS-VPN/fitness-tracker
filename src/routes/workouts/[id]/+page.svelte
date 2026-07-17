@@ -146,7 +146,7 @@
 	{/snippet}
 </PageHeader>
 
-<div class="px-4 space-y-4">
+<div class="mx-auto max-w-md px-4 space-y-4">
 	{#if restStarted}
 		{#key restKey}
 			<RestTimer targetSeconds={restTarget} />
