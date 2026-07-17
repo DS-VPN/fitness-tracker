@@ -18,6 +18,7 @@
 	let added = $state(false);
 	let addedCount = $state(0);
 	let addedTimeout: ReturnType<typeof setTimeout> | undefined;
+	let addMultiplier = $state(1);
 
 	let logPortions = $state(1);
 	let logged = $state(false);
@@ -143,6 +144,7 @@
 		<form
 			method="POST"
 			action="?/addToList"
+			class="space-y-2"
 			use:enhance={() => {
 				return async ({ result, update }) => {
 					if (result.type === 'success') {
@@ -155,6 +157,8 @@
 				};
 			}}
 		>
+			<input type="hidden" name="multiplier" value={addMultiplier} />
+			<NumberStepper label="Times to add (e.g. 2 = double the recipe)" bind:value={addMultiplier} step={0.5} min={0.5} />
 			<Button type="submit" variant="primary" size="lg" full class="w-full">
 				<Icon name="cart" size={18} />
 				Add ingredients to shopping list

@@ -5,6 +5,7 @@ import {
 	setChecked,
 	setQuantity,
 	removeItem,
+	removeMealSource,
 	clearChecked,
 	hasListAccess,
 	listMyShares,
@@ -84,6 +85,21 @@ export const actions: Actions = {
 		if (id === null || ownerId === null) return fail(400, { error: 'Invalid item' });
 		try {
 			await removeItem(locals.user!.id, ownerId, id);
+		} catch (e) {
+			return fail(403, { error: friendlyError(e, 'You do not have access to this shopping list') });
+		}
+	},
+
+	removeMealSource: async ({ request, locals }) => {
+		const form = await request.formData();
+		const id = readId(form);
+		const ownerId = readId(form, 'ownerId');
+		if (id === null || ownerId === null) return fail(400, { error: 'Invalid item' });
+		const mealIdRaw = form.get('mealId');
+		const mealId = mealIdRaw === null || mealIdRaw === '' ? null : Number(mealIdRaw);
+		if (mealId !== null && !Number.isFinite(mealId)) return fail(400, { error: 'Invalid meal' });
+		try {
+			await removeMealSource(locals.user!.id, ownerId, id, mealId);
 		} catch (e) {
 			return fail(403, { error: friendlyError(e, 'You do not have access to this shopping list') });
 		}

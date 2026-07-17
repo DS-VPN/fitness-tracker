@@ -7,7 +7,10 @@ import type { RequestHandler } from './$types';
 
 /** What a lookup resolves to, cached verbatim in barcode_cache so repeat scans never re-hit the API. */
 type CachedLookup =
-	| { found: true; prefill: { name: string; brand: string | null; calories: number; protein: number; carbs: number; fat: number; servingSize: string } }
+	| {
+			found: true;
+			prefill: { name: string; brand: string | null; calories: number; protein: number; carbs: number; fat: number; amount: number; unit: string };
+	  }
 	| { found: false };
 
 // Open Food Facts asks API consumers to identify themselves; browsers can't set User-Agent, which is
@@ -44,7 +47,8 @@ async function lookupOpenFoodFacts(code: string): Promise<CachedLookup> {
 			protein: num(n['proteins_100g']),
 			carbs: num(n['carbohydrates_100g']),
 			fat: num(n['fat_100g']),
-			servingSize: '100 g'
+			amount: 100,
+			unit: 'g'
 		}
 	};
 }

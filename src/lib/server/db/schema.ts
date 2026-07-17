@@ -60,7 +60,9 @@ export const products = sqliteTable('products', {
 	brand: text('brand'),
 	/** EAN/UPC from barcode scanning — lets a repeat scan match this product locally without any API lookup. */
 	barcode: text('barcode'),
-	servingSize: text('serving_size'),
+	/** The macros below are per `amount` `unit`s of this product (e.g. amount=100, unit='g' — a nutrition-label serving). */
+	amount: real('amount').notNull().default(100),
+	unit: text('unit').notNull().default('g'),
 	calories: real('calories').notNull().default(0),
 	protein: real('protein').notNull().default(0),
 	carbs: real('carbs').notNull().default(0),
@@ -73,7 +75,8 @@ export const products = sqliteTable('products', {
 }, (t) => [
 	index('products_user_idx').on(t.userId),
 	index('products_name_idx').on(t.name),
-	index('products_barcode_idx').on(t.barcode)
+	index('products_barcode_idx').on(t.barcode),
+	check('products_unit_valid', sql`${t.unit} in ('g', 'ml', 'pcs')`)
 ]);
 
 /** An ingredient in a meal's recipe: exactly one of productId/subMealId is set (enforced below and in the repo layer). */
@@ -95,16 +98,41 @@ export const mealIngredients = sqliteTable('meal_ingredients', {
 	)
 ]);
 
+/** A line on the shopping list. Product-linked rows (productId set) are the ingredient-derived kind — their
+ *  amount is computed live from shoppingListItemSources + the current recipe, never stored, so editing a
+ *  meal's ingredient quantities is reflected automatically. name/brand/quantity are used only for manual,
+ *  freeform items (productId null) which have no recipe to derive an amount from. */
 export const shoppingListItems = sqliteTable('shopping_list_items', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-	mealId: integer('meal_id').references(() => meals.id, { onDelete: 'set null' }),
-	name: text('name').notNull(),
+	productId: integer('product_id').references(() => products.id, { onDelete: 'set null' }),
+	name: text('name'),
 	brand: text('brand'),
 	quantity: integer('quantity').notNull().default(1),
 	checked: integer('checked', { mode: 'boolean' }).notNull().default(false),
 	createdAt: timestamp('created_at')
-}, (t) => [index('shopping_list_user_idx').on(t.userId), index('shopping_list_meal_idx').on(t.mealId)]);
+}, (t) => [
+	index('shopping_list_user_idx').on(t.userId),
+	index('shopping_list_product_idx').on(t.productId),
+	uniqueIndex('shopping_list_items_user_product_unique').on(t.userId, t.productId).where(sql`${t.productId} is not null`)
+]);
+
+/** One meal's (or a direct add's, when mealId is null) contribution to a product-linked shopping list item.
+ *  No amount is stored here — it's computed live at read time from the meal's current ingredient quantity,
+ *  so quantities update automatically when a recipe is edited. multiplier accumulates on repeat adds. */
+export const shoppingListItemSources = sqliteTable('shopping_list_item_sources', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	itemId: integer('item_id').notNull().references(() => shoppingListItems.id, { onDelete: 'cascade' }),
+	mealId: integer('meal_id').references(() => meals.id, { onDelete: 'set null' }),
+	/** Snapshot of the meal's name, shown only once mealId has gone null (source meal deleted). */
+	mealName: text('meal_name'),
+	multiplier: real('multiplier').notNull().default(1),
+	createdAt: timestamp('created_at'),
+	updatedAt: timestamp('updated_at')
+}, (t) => [
+	index('shopping_list_item_sources_item_idx').on(t.itemId),
+	index('shopping_list_item_sources_meal_idx').on(t.mealId)
+]);
 
 /** Grants sharedWithUserId read/write access to ownerId's shopping list. */
 export const shoppingListShares = sqliteTable('shopping_list_shares', {

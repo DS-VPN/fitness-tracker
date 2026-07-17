@@ -12,19 +12,29 @@
 		refId: number;
 		name: string;
 		brand?: string | null;
+		amount?: number;
+		unit?: string;
 		totalMacros: { calories: number; protein: number; carbs: number; fat: number };
 	};
 
 	let { ingredient }: { ingredient: Ingredient } = $props();
 
+	const isProduct = $derived(ingredient.type === 'product' && ingredient.amount != null);
+	/** The real amount this ingredient uses, e.g. "200 g" for quantity=2 on a 100g product. */
+	const realAmount = $derived(isProduct ? round(ingredient.quantity * ingredient.amount!) : null);
+
 	let editing = $state(false);
-	let editQuantity = $state(ingredient.quantity);
+	let editValue = $state(ingredient.quantity);
 	let editError = $state('');
 	let addedToShopping = $state(false);
 	let addedTimeout: ReturnType<typeof setTimeout> | undefined;
 
+	function round(n: number) {
+		return Math.round(n * 100) / 100;
+	}
+
 	function startEdit() {
-		editQuantity = ingredient.quantity;
+		editValue = isProduct ? realAmount! : ingredient.quantity;
 		editError = '';
 		editing = true;
 	}
@@ -44,7 +54,12 @@
 				{/if}
 			</div>
 			<p class="text-xs text-[var(--color-text-muted)]">
-				&times;{ingredient.quantity}{#if ingredient.brand}&nbsp;&middot; {ingredient.brand}{/if}
+				{#if isProduct}
+					{realAmount}&nbsp;{ingredient.unit}
+				{:else}
+					&times;{ingredient.quantity} portions
+				{/if}
+				{#if ingredient.brand}&nbsp;&middot; {ingredient.brand}{/if}
 			</p>
 			<MacroBadge
 				calories={ingredient.totalMacros.calories}
@@ -128,7 +143,14 @@
 			}}
 		>
 			<input type="hidden" name="ingredientId" value={ingredient.id} />
-			<NumberField label="Quantity" name="quantity" bind:value={editQuantity} min={0.01} step={0.01} class="flex-1" />
+			<NumberField
+				label={isProduct ? `Amount (${ingredient.unit})` : 'Portions'}
+				name="value"
+				bind:value={editValue}
+				min={0.01}
+				step={0.01}
+				class="flex-1"
+			/>
 			<Button type="button" variant="ghost" onclick={() => (editing = false)}>Cancel</Button>
 			<Button type="submit" variant="primary">Save</Button>
 		</form>

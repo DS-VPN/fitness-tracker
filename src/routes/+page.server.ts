@@ -80,7 +80,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			name: p.name,
 			brand: p.brand,
 			calories: p.calories,
-			servingSize: p.servingSize
+			amount: p.amount,
+			unit: p.unit
 		}))
 	};
 };

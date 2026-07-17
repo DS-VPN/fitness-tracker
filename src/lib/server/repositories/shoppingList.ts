@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
-import { shoppingListItems, meals, users, shoppingListShares, products } from '$lib/server/db/schema';
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { shoppingListItems, shoppingListItemSources, meals, users, shoppingListShares, products } from '$lib/server/db/schema';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { resolveMealProducts } from '$lib/server/repositories/meals';
 
 export async function hasListAccess(actingUserId: number, ownerId: number): Promise<boolean> {
@@ -18,58 +18,105 @@ async function assertAccess(actingUserId: number, ownerId: number) {
 	}
 }
 
-export async function listShoppingList(ownerId: number) {
-	const rows = await db
-		.select()
-		.from(shoppingListItems)
-		.where(eq(shoppingListItems.userId, ownerId))
-		.orderBy(asc(shoppingListItems.createdAt));
-	return {
-		fromMeals: rows.filter((r) => r.mealId !== null),
-		manual: rows.filter((r) => r.mealId === null)
-	};
+function normalizeMultiplier(multiplier: number): number {
+	if (!Number.isFinite(multiplier) || multiplier <= 0) return 1;
+	return Math.round(multiplier * 100) / 100;
 }
 
-/** Adds every product that makes up a meal (recursing through one level of sub-meals, using the recipe's own
- *  quantities) to the user's own list — never adds the meal's own name as a line item, since you can't buy
- *  "1x Taco Night" at a store, only tortillas/ground beef/cheese/etc. Returns how many product lines were added. */
-export async function addMealToList(userId: number, mealId: number): Promise<number> {
-	const [meal] = await db.select({ id: meals.id }).from(meals).where(and(eq(meals.id, mealId), eq(meals.userId, userId)));
+function round(n: number): number {
+	return Math.round(n * 100) / 100;
+}
+
+export type ShoppingListSource = { mealId: number | null; label: string; amount: number };
+export type ShoppingListProductItem = {
+	id: number;
+	kind: 'product';
+	productId: number;
+	name: string;
+	brand: string | null;
+	unit: string;
+	totalAmount: number;
+	sources: ShoppingListSource[];
+	checked: boolean;
+};
+export type ShoppingListManualItem = {
+	id: number;
+	kind: 'manual';
+	name: string;
+	brand: string | null;
+	quantity: number;
+	checked: boolean;
+};
+
+/** Finds or creates the (userId, productId)-keyed shopping list line for a product. */
+async function upsertItemForProduct(userId: number, productId: number): Promise<number> {
+	const [existing] = await db
+		.select({ id: shoppingListItems.id })
+		.from(shoppingListItems)
+		.where(and(eq(shoppingListItems.userId, userId), eq(shoppingListItems.productId, productId)));
+	if (existing) return existing.id;
+
+	const [row] = await db.insert(shoppingListItems).values({ userId, productId, checked: false }).returning();
+	return row.id;
+}
+
+/** Finds or creates the source row for (itemId, mealId) — mealId null means "added directly, not via a meal".
+ *  Increments multiplier on repeat adds rather than duplicating the row (a DB-level unique constraint can't
+ *  cover the null-mealId case, since SQLite treats every NULL as distinct in a UNIQUE index). */
+async function upsertSource(itemId: number, mealId: number | null, mealName: string | null, multiplier: number) {
+	const condition =
+		mealId == null
+			? and(eq(shoppingListItemSources.itemId, itemId), isNull(shoppingListItemSources.mealId))
+			: and(eq(shoppingListItemSources.itemId, itemId), eq(shoppingListItemSources.mealId, mealId));
+
+	const [existing] = await db.select().from(shoppingListItemSources).where(condition);
+	if (existing) {
+		await db
+			.update(shoppingListItemSources)
+			.set({ multiplier: existing.multiplier + multiplier, updatedAt: new Date() })
+			.where(eq(shoppingListItemSources.id, existing.id));
+		return;
+	}
+
+	await db
+		.insert(shoppingListItemSources)
+		.values({ itemId, mealId, mealName, multiplier, createdAt: new Date(), updatedAt: new Date() });
+}
+
+/** Adds a meal's resolved ingredients (recursing through one level of sub-meals via resolveMealProducts) to the
+ *  user's own list, scaled by `multiplier` (e.g. 2 for "add this meal twice"). Repeat adds of the same meal
+ *  increment that meal's contribution rather than duplicating lines. Returns the count of distinct products
+ *  touched. Grams are never stored here — they're computed live in listShoppingList from the meal's CURRENT
+ *  ingredient quantities, so editing a recipe after adding it updates the shopping list automatically. */
+export async function addMealToList(userId: number, mealId: number, multiplier: number = 1): Promise<number> {
+	const [meal] = await db
+		.select({ id: meals.id, name: meals.name })
+		.from(meals)
+		.where(and(eq(meals.id, mealId), eq(meals.userId, userId)));
 	if (!meal) throw new Error('Meal not found');
 
+	const normalized = normalizeMultiplier(multiplier);
 	const resolved = await resolveMealProducts(mealId);
-	await addProductsToList(userId, resolved);
-	return resolved.length;
+	const productIds = [...new Set(resolved.map((r) => r.productId))];
+
+	for (const productId of productIds) {
+		const itemId = await upsertItemForProduct(userId, productId);
+		await upsertSource(itemId, mealId, meal.name, normalized);
+	}
+	return productIds.length;
 }
 
-/** Quick-add a product straight to the user's own list — merges into an existing manual item with the same name, like addManualItem does. */
-export async function addProductToList(userId: number, productId: number, quantity: number = 1) {
+/** Quick-add a single product straight to the user's own list, outside of any meal (mealId null source).
+ *  `multiplier` means the same thing it does inside a recipe — how many of the product's defined amount. */
+export async function addProductToList(userId: number, productId: number, multiplier: number = 1) {
 	const [product] = await db
-		.select()
+		.select({ id: products.id })
 		.from(products)
 		.where(and(eq(products.id, productId), eq(products.userId, userId)));
 	if (!product) throw new Error('Product not found');
 
-	const [existing] = await db
-		.select()
-		.from(shoppingListItems)
-		.where(
-			and(
-				eq(shoppingListItems.userId, userId),
-				isNull(shoppingListItems.mealId),
-				sql`lower(${shoppingListItems.name}) = lower(${product.name})`
-			)
-		);
-
-	if (existing) {
-		await db
-			.update(shoppingListItems)
-			.set({ quantity: existing.quantity + quantity, checked: false })
-			.where(eq(shoppingListItems.id, existing.id));
-		return;
-	}
-
-	await db.insert(shoppingListItems).values({ userId, name: product.name, brand: product.brand, quantity, checked: false });
+	const itemId = await upsertItemForProduct(userId, productId);
+	await upsertSource(itemId, null, null, normalizeMultiplier(multiplier));
 }
 
 /** Bulk quick-add — used for "add all of this sub-meal's products at once". */
@@ -77,6 +124,115 @@ export async function addProductsToList(userId: number, items: { productId: numb
 	for (const item of items) {
 		await addProductToList(userId, item.productId, item.quantity);
 	}
+}
+
+/** Removes one meal's (or a direct add's, when mealId is null) contribution to a shopping list item. Deletes
+ *  the item entirely once it has no sources left. */
+export async function removeMealSource(actingUserId: number, ownerId: number, itemId: number, mealId: number | null) {
+	await assertAccess(actingUserId, ownerId);
+	const [item] = await db
+		.select({ id: shoppingListItems.id })
+		.from(shoppingListItems)
+		.where(and(eq(shoppingListItems.id, itemId), eq(shoppingListItems.userId, ownerId)));
+	if (!item) throw new Error('Item not found');
+
+	const condition =
+		mealId == null
+			? and(eq(shoppingListItemSources.itemId, itemId), isNull(shoppingListItemSources.mealId))
+			: and(eq(shoppingListItemSources.itemId, itemId), eq(shoppingListItemSources.mealId, mealId));
+	await db.delete(shoppingListItemSources).where(condition);
+
+	const [{ count }] = await db
+		.select({ count: sql<number>`count(*)`.mapWith(Number) })
+		.from(shoppingListItemSources)
+		.where(eq(shoppingListItemSources.itemId, itemId));
+	if (count === 0) {
+		await db.delete(shoppingListItems).where(eq(shoppingListItems.id, itemId));
+	}
+}
+
+export async function listShoppingList(
+	ownerId: number
+): Promise<{ fromMeals: ShoppingListProductItem[]; manual: ShoppingListManualItem[] }> {
+	const rows = await db
+		.select()
+		.from(shoppingListItems)
+		.where(eq(shoppingListItems.userId, ownerId))
+		.orderBy(asc(shoppingListItems.createdAt));
+
+	const manual: ShoppingListManualItem[] = rows
+		.filter((r) => r.productId == null)
+		.map((r) => ({ id: r.id, kind: 'manual', name: r.name!, brand: r.brand, quantity: r.quantity, checked: r.checked }));
+
+	const productRows = rows.filter((r) => r.productId != null);
+	if (productRows.length === 0) return { fromMeals: [], manual };
+
+	const productIds = productRows.map((r) => r.productId!);
+	const productList = await db.select().from(products).where(inArray(products.id, productIds));
+	const productById = new Map(productList.map((p) => [p.id, p]));
+
+	const itemIds = productRows.map((r) => r.id);
+	const sources = await db.select().from(shoppingListItemSources).where(inArray(shoppingListItemSources.itemId, itemIds));
+	const sourcesByItem = new Map<number, typeof sources>();
+	for (const s of sources) {
+		const list = sourcesByItem.get(s.itemId) ?? [];
+		list.push(s);
+		sourcesByItem.set(s.itemId, list);
+	}
+
+	// Resolve each distinct referenced meal's CURRENT ingredient quantities exactly once, so a recipe edited
+	// after being added to the list is reflected without any extra bookkeeping.
+	const mealIds = [...new Set(sources.filter((s) => s.mealId != null).map((s) => s.mealId!))];
+	const resolvedByMeal = new Map<number, Map<number, number>>();
+	for (const mealId of mealIds) {
+		const resolved = await resolveMealProducts(mealId);
+		const perProduct = new Map<number, number>();
+		for (const r of resolved) {
+			perProduct.set(r.productId, (perProduct.get(r.productId) ?? 0) + r.quantity);
+		}
+		resolvedByMeal.set(mealId, perProduct);
+	}
+	const mealRows = mealIds.length
+		? await db.select({ id: meals.id, name: meals.name }).from(meals).where(inArray(meals.id, mealIds))
+		: [];
+	const mealNameById = new Map(mealRows.map((m) => [m.id, m.name]));
+
+	const fromMeals: ShoppingListProductItem[] = [];
+	for (const row of productRows) {
+		const product = productById.get(row.productId!);
+		if (!product) continue; // defensive: FK set-null would have cleared productId already
+
+		let totalAmount = 0;
+		const sourceViews: ShoppingListSource[] = [];
+		for (const s of sourcesByItem.get(row.id) ?? []) {
+			let quantity: number;
+			let label: string;
+			if (s.mealId != null) {
+				quantity = resolvedByMeal.get(s.mealId)?.get(product.id) ?? 0;
+				label = mealNameById.get(s.mealId) ?? s.mealName ?? 'Deleted meal';
+			} else {
+				quantity = 1;
+				label = 'Added directly';
+			}
+			const amount = quantity * s.multiplier * product.amount;
+			totalAmount += amount;
+			sourceViews.push({ mealId: s.mealId, label, amount: round(amount) });
+		}
+
+		fromMeals.push({
+			id: row.id,
+			kind: 'product',
+			productId: product.id,
+			name: product.name,
+			brand: product.brand,
+			unit: product.unit,
+			totalAmount: round(totalAmount),
+			sources: sourceViews,
+			checked: row.checked
+		});
+	}
+
+	return { fromMeals, manual };
 }
 
 export async function addManualItem(actingUserId: number, ownerId: number, name: string, brand?: string) {
@@ -90,7 +246,7 @@ export async function addManualItem(actingUserId: number, ownerId: number, name:
 		.where(
 			and(
 				eq(shoppingListItems.userId, ownerId),
-				isNull(shoppingListItems.mealId),
+				isNull(shoppingListItems.productId),
 				sql`lower(${shoppingListItems.name}) = lower(${trimmed})`
 			)
 		);

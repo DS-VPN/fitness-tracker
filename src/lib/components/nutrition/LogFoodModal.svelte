@@ -9,7 +9,7 @@
 	import BarcodeScanner from '$lib/components/BarcodeScanner.svelte';
 
 	type MealOption = { id: number; name: string; portions: number; totalMacros: { calories: number } };
-	type ProductOption = { id: number; name: string; brand: string | null; calories: number; servingSize: string | null };
+	type ProductOption = { id: number; name: string; brand: string | null; calories: number; amount: number; unit: string };
 	type Selected = { kind: 'meal' | 'product'; id: number; name: string; kcalPerPortion: number; unitLabel: string };
 
 	let {
@@ -88,7 +88,8 @@
 				const params = new URLSearchParams({
 					barcode: data.barcode,
 					name: p.name,
-					servingSize: p.servingSize,
+					amount: String(p.amount),
+					unit: p.unit,
 					calories: String(p.calories),
 					protein: String(p.protein),
 					carbs: String(p.carbs),
@@ -183,7 +184,7 @@
 							{product.name}{#if product.brand}<span class="text-[var(--color-text-muted)]"> · {product.brand}</span>{/if}
 						</span>
 						<span class="text-xs text-[var(--color-text-muted)]">
-							{Math.round(product.calories)} kcal{product.servingSize ? ` / ${product.servingSize}` : ' / serving'}
+							{Math.round(product.calories)} kcal / {product.amount}{product.unit}
 						</span>
 					</span>
 					<span

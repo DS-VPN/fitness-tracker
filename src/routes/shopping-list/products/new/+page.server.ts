@@ -23,13 +23,22 @@ function parseProductForm(form: FormData): { data: ProductInput } | { error: str
 		const s = v === null ? '' : String(v).trim();
 		return s === '' ? null : s;
 	};
+	const amount = (() => {
+		const n = Number(form.get('amount'));
+		return Number.isFinite(n) && n > 0 ? n : 100;
+	})();
+	const unit = (() => {
+		const v = String(form.get('unit') ?? '').trim();
+		return v === 'g' || v === 'ml' || v === 'pcs' ? v : 'g';
+	})();
 
 	return {
 		data: {
 			name,
 			brand: str('brand'),
 			barcode: str('barcode'),
-			servingSize: str('servingSize'),
+			amount,
+			unit,
 			calories: num('calories'),
 			protein: num('protein'),
 			carbs: num('carbs'),

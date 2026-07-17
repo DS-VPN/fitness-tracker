@@ -64,7 +64,7 @@ export async function logMealToDay(userId: number, mealId: number, portions: num
 	return row;
 }
 
-/** Logs `portions` servings of a product (its macros are per serving) to the diary for `date`. */
+/** Logs `portions` servings of a product (its macros are per its defined amount/unit, e.g. 100 g) to the diary for `date`. */
 export async function logProductToDay(userId: number, productId: number, portions: number, date: string) {
 	const [product] = await db
 		.select()

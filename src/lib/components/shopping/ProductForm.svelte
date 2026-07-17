@@ -2,13 +2,15 @@
 	import { enhance } from '$app/forms';
 	import TextField from '$lib/components/TextField.svelte';
 	import NumberField from '$lib/components/NumberField.svelte';
+	import SelectField from '$lib/components/SelectField.svelte';
 	import Button from '$lib/components/Button.svelte';
 
 	type Initial = {
 		name?: string;
 		brand?: string | null;
 		barcode?: string | null;
-		servingSize?: string | null;
+		amount?: number;
+		unit?: string;
 		calories?: number;
 		protein?: number;
 		carbs?: number;
@@ -17,6 +19,12 @@
 		sugar?: number | null;
 		sodium?: number | null;
 	};
+
+	const UNIT_OPTIONS = [
+		{ value: 'g', label: 'grams (g)' },
+		{ value: 'ml', label: 'milliliters (ml)' },
+		{ value: 'pcs', label: 'pieces' }
+	];
 
 	let {
 		initial,
@@ -39,7 +47,8 @@
 	let name = $state(initial?.name ?? '');
 	let brand = $state(initial?.brand ?? '');
 	let barcode = $state(initial?.barcode ?? '');
-	let servingSize = $state(initial?.servingSize ?? '');
+	let amount = $state<number | null>(initial?.amount ?? 100);
+	let unit = $state(initial?.unit ?? 'g');
 	let calories = $state<number | null>(initial?.calories ?? 0);
 	let protein = $state<number | null>(initial?.protein ?? 0);
 	let carbs = $state<number | null>(initial?.carbs ?? 0);
@@ -68,7 +77,6 @@
 				onAdded?.((result.data as { product?: unknown } | undefined)?.product);
 				name = '';
 				barcode = '';
-				servingSize = '';
 				calories = 0;
 				protein = 0;
 				carbs = 0;
@@ -90,12 +98,13 @@
 			Barcode {barcode} — future scans of it will find this product instantly.
 		</p>
 	{/if}
-	<TextField
-		label="Serving size"
-		name="servingSize"
-		bind:value={servingSize}
-		placeholder="e.g. 100 g"
-	/>
+	<div class="grid grid-cols-2 gap-3">
+		<NumberField label="Amount" name="amount" bind:value={amount} min={0.01} step={0.01} required />
+		<SelectField label="Unit" name="unit" bind:value={unit} options={UNIT_OPTIONS} />
+	</div>
+	<p class="text-xs text-[var(--color-text-muted)] -mt-3">
+		The macros below are per this amount — e.g. 100 g, or 1 piece.
+	</p>
 
 	<div>
 		<p class="mb-1.5 text-sm font-medium text-[var(--color-text)]">Macros</p>

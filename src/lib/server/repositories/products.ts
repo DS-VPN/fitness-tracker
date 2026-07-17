@@ -6,7 +6,9 @@ export type ProductInput = {
 	name: string;
 	brand?: string | null;
 	barcode?: string | null;
-	servingSize?: string | null;
+	/** Macros below are per `amount` `unit`s of this product (e.g. 100/'g'). */
+	amount: number;
+	unit: string;
 	calories: number;
 	protein: number;
 	carbs: number;

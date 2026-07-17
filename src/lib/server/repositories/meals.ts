@@ -12,7 +12,10 @@ export type MealIngredientView = {
 	refId: number;
 	name: string;
 	brand?: string | null;
-	servingSize?: string | null;
+	/** The product's defined serving amount+unit (e.g. 100/'g') — undefined for sub-meal ingredients, which
+	 *  have no single unit. quantity * amount is the real amount used, e.g. "200 g". */
+	amount?: number;
+	unit?: string;
 	unitMacros: Macros;
 	totalMacros: Macros;
 };
@@ -181,7 +184,8 @@ export async function getMeal(userId: number, id: number) {
 				refId: product.id,
 				name: product.name,
 				brand: product.brand,
-				servingSize: product.servingSize,
+				amount: product.amount,
+				unit: product.unit,
 				unitMacros,
 				totalMacros: scaleMacros(unitMacros, ing.quantity)
 			});
