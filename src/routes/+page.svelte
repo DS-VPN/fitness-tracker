@@ -64,14 +64,23 @@
 	<Card>
 		<div class="flex items-center justify-between mb-3">
 			<h2 class="text-sm font-medium text-[var(--color-text-muted)]">Today's nutrition</h2>
-			<button
-				type="button"
-				aria-label="Edit daily targets"
-				onclick={() => (targetsOpen = true)}
-				class="h-8 w-8 flex items-center justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-alt)]"
-			>
-				<Icon name="sliders" size={16} />
-			</button>
+			<div class="flex items-center gap-0.5">
+				<a
+					href="/diary"
+					class="h-8 px-2.5 flex items-center gap-1 rounded-full text-xs font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface-alt)]"
+				>
+					<Icon name="chart" size={15} />
+					History
+				</a>
+				<button
+					type="button"
+					aria-label="Edit daily targets"
+					onclick={() => (targetsOpen = true)}
+					class="h-8 w-8 flex items-center justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-alt)]"
+				>
+					<Icon name="sliders" size={16} />
+				</button>
+			</div>
 		</div>
 
 		{#if data.targets}

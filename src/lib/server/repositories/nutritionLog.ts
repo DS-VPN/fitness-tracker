@@ -121,3 +121,31 @@ export async function daySummary(userId: number, date: string) {
 export async function deleteEntry(userId: number, id: number) {
 	await db.delete(mealLogs).where(and(eq(mealLogs.id, id), eq(mealLogs.userId, userId)));
 }
+
+export type DaySummary = {
+	date: string;
+	calories: number;
+	protein: number;
+	carbs: number;
+	fat: number;
+	entryCount: number;
+};
+
+/** Recent days that have at least one logged entry, most recent first, with that day's totals.
+ *  Powers the food-diary history list. */
+export async function recentDaySummaries(userId: number, limit = 60): Promise<DaySummary[]> {
+	return db
+		.select({
+			date: mealLogs.date,
+			calories: sql<number>`coalesce(sum(${mealLogs.calories}), 0)`.mapWith(Number),
+			protein: sql<number>`coalesce(sum(${mealLogs.protein}), 0)`.mapWith(Number),
+			carbs: sql<number>`coalesce(sum(${mealLogs.carbs}), 0)`.mapWith(Number),
+			fat: sql<number>`coalesce(sum(${mealLogs.fat}), 0)`.mapWith(Number),
+			entryCount: sql<number>`count(*)`.mapWith(Number)
+		})
+		.from(mealLogs)
+		.where(eq(mealLogs.userId, userId))
+		.groupBy(mealLogs.date)
+		.orderBy(desc(mealLogs.date))
+		.limit(limit);
+}
