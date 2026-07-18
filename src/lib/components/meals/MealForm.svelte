@@ -15,12 +15,15 @@
 		categories,
 		initial,
 		submitLabel = 'Save',
-		formError = null
+		formError = null,
+		action
 	}: {
 		categories: { id: number; name: string }[];
 		initial?: Initial;
 		submitLabel?: string;
 		formError?: string | null;
+		/** Named form action to post to (e.g. "?/create"); omitted = the page's default action. */
+		action?: string;
 	} = $props();
 
 	let name = $state(initial?.name ?? '');
@@ -38,6 +41,7 @@
 
 <form
 	method="POST"
+	{action}
 	class="space-y-5 pb-10"
 	use:enhance={() => {
 		submitting = true;

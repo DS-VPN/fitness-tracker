@@ -5,10 +5,13 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import ProgressRing from '$lib/components/nutrition/ProgressRing.svelte';
 	import MacroBar from '$lib/components/nutrition/MacroBar.svelte';
+	import WeightChart from '$lib/components/nutrition/WeightChart.svelte';
 	import TargetsModal from '$lib/components/nutrition/TargetsModal.svelte';
 	import LogFoodModal from '$lib/components/nutrition/LogFoodModal.svelte';
 	import SettingsModal from '$lib/components/SettingsModal.svelte';
 	import HintCard from '$lib/components/HintCard.svelte';
+	import NumberField from '$lib/components/NumberField.svelte';
+	import StatCard from '$lib/components/StatCard.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -16,6 +19,11 @@
 	let targetsOpen = $state(false);
 	let logOpen = $state(false);
 	let settingsOpen = $state(false);
+
+	let weightInput = $state<number | null>(null);
+	let weightError = $state('');
+	let weightSaved = $state(false);
+	let weightSavedTimeout: ReturnType<typeof setTimeout> | undefined;
 
 	const kcalRemaining = $derived(data.targets ? Math.round(data.targets.calories - data.summary.calories) : 0);
 
@@ -171,6 +179,79 @@
 	{/if}
 
 	<div>
+		<h2 class="section-label mb-2 px-1">Weight</h2>
+		<Card>
+			{#if data.weight.latest}
+				<div class="flex items-baseline justify-between gap-2">
+					<p class="text-2xl font-semibold text-[var(--color-text)] tabular-nums">
+						{data.weight.latest.trendKg}<span class="ml-1.5 text-sm font-normal text-[var(--color-text-muted)]"
+							>kg trend</span
+						>
+					</p>
+					{#if data.weight.weekDelta != null}
+						<span class="shrink-0 text-sm text-[var(--color-text-muted)] tabular-nums">
+							{data.weight.weekDelta > 0 ? '+' : ''}{data.weight.weekDelta} kg this week
+						</span>
+					{/if}
+				</div>
+				<p class="mt-0.5 text-xs text-[var(--color-text-muted)] tabular-nums">
+					Last weigh-in {data.weight.latest.weightKg} kg
+				</p>
+				{#if data.weight.chart.length > 1}
+					<div class="mt-2">
+						<WeightChart points={data.weight.chart} />
+					</div>
+				{/if}
+			{:else}
+				<p class="text-sm text-[var(--color-text-muted)]">
+					Weigh in whenever suits you — the smoothed trend is what matters, not any single reading.
+				</p>
+			{/if}
+			<form
+				method="POST"
+				action="?/logWeight"
+				class="mt-3 flex items-end gap-2"
+				use:enhance={() => {
+					weightError = '';
+					return async ({ result, update }) => {
+						if (result.type === 'success') {
+							weightInput = null;
+							weightSaved = true;
+							clearTimeout(weightSavedTimeout);
+							weightSavedTimeout = setTimeout(() => (weightSaved = false), 2000);
+						} else if (result.type === 'failure') {
+							weightError = (result.data?.weightError as string) ?? 'Could not log weight';
+						}
+						await update({ reset: false });
+					};
+				}}
+			>
+				<NumberField
+					label="Today's weigh-in"
+					name="weight"
+					bind:value={weightInput}
+					suffix="kg"
+					decimalText
+					placeholder="e.g. 82.4"
+					class="flex-1"
+				/>
+				<Button type="submit" variant="secondary">Log</Button>
+			</form>
+			{#if weightSaved}
+				<p class="mt-1.5 text-sm text-[var(--color-success)]">Saved</p>
+			{/if}
+			{#if weightError}
+				<p class="mt-1.5 text-sm text-[var(--color-danger)]">{weightError}</p>
+			{/if}
+			{#if !data.weight.hasAny}
+				<p class="mt-2 text-xs text-[var(--color-text-muted)]">
+					iPhone scale user? Auto-sync from Apple Health under Settings.
+				</p>
+			{/if}
+		</Card>
+	</div>
+
+	<div>
 		<h2 class="section-label mb-2 px-1">Workout</h2>
 		{#if data.todayWorkout}
 			<Card href={`/workouts/${data.todayWorkout.id}`}>
@@ -270,6 +351,22 @@
 					</Card>
 				{/each}
 			</div>
+		</div>
+	{/if}
+
+	{#if data.week.daysLogged > 0 || data.week.workouts > 0}
+		<div>
+			<h2 class="section-label mb-2 px-1">This week</h2>
+			<Card>
+				<div class="grid grid-cols-3 gap-3">
+					<StatCard label="Avg kcal/day" value={data.week.avg?.calories ?? '—'} />
+					<StatCard label="Avg protein" value={data.week.avg?.protein ?? '—'} unit={data.week.avg ? 'g' : ''} />
+					<StatCard label="Workouts" value={data.week.workouts} />
+				</div>
+				<p class="mt-3 text-xs text-[var(--color-text-muted)] tabular-nums">
+					{data.week.daysLogged} of 7 days logged{#if data.week.sets > 0}&nbsp;· {data.week.sets} sets{/if}{#if data.weight.weekDelta != null}&nbsp;· weight {data.weight.weekDelta > 0 ? '+' : ''}{data.weight.weekDelta} kg{/if}
+				</p>
+			</Card>
 		</div>
 	{/if}
 </div>

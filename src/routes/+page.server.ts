@@ -10,27 +10,65 @@ import {
 	saveTargets,
 	logMealToDay,
 	logProductToDay,
+	logQuickAdd,
 	listDay,
 	daySummary,
+	recentDaySummaries,
 	deleteEntry
 } from '$lib/server/repositories/nutritionLog';
+import { listWeights, logWeight, withTrend } from '$lib/server/repositories/bodyWeight';
 import { todayIso } from '$lib/utils/todayIso';
+import { shiftIsoDate } from '$lib/utils/isoDate';
+import { parseDecimal } from '$lib/utils/parseDecimal';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const userId = locals.user!.id;
 	const today = todayIso();
 
-	const [targets, summary, entries, sessions, goals, exerciseProgress, meals, products] = await Promise.all([
-		getTargets(userId),
-		daySummary(userId, today),
-		listDay(userId, today),
-		listSessions(userId),
-		goalsWithProgress(userId),
-		recentExerciseProgress(userId, 3),
-		listMeals(userId),
-		listProducts(userId)
-	]);
+	const [targets, summary, entries, sessions, goals, exerciseProgress, meals, products, weights, recentDays] =
+		await Promise.all([
+			getTargets(userId),
+			daySummary(userId, today),
+			listDay(userId, today),
+			listSessions(userId),
+			goalsWithProgress(userId),
+			recentExerciseProgress(userId, 3),
+			listMeals(userId),
+			listProducts(userId),
+			// 90 days back so the trend line has warm-up history behind the charted window.
+			listWeights(userId, shiftIsoDate(today, -89)),
+			recentDaySummaries(userId, 30)
+		]);
+
+	// Body weight: smoothed trend over the last 90 days, charted for the last 30.
+	const trendPoints = withTrend(weights);
+	const chartFrom = shiftIsoDate(today, -29);
+	const weightChart = trendPoints.filter((p) => p.date >= chartFrom);
+	const latestWeight = trendPoints.at(-1) ?? null;
+	// Week-over-week change of the trend (not the noisy scale reading).
+	const weekAgo = shiftIsoDate(today, -7);
+	const trendWeekAgo = [...trendPoints].reverse().find((p) => p.date <= weekAgo) ?? null;
+	const weightWeekDelta =
+		latestWeight && trendWeekAgo ? Math.round((latestWeight.trendKg - trendWeekAgo.trendKg) * 10) / 10 : null;
+
+	// This week: the last 7 calendar days of food + training, averaged over days actually logged.
+	const weekFrom = shiftIsoDate(today, -6);
+	const weekDays = recentDays.filter((d) => d.date >= weekFrom);
+	const daysLogged = weekDays.length;
+	const weekAvg = daysLogged
+		? {
+				calories: Math.round(weekDays.reduce((sum, d) => sum + d.calories, 0) / daysLogged),
+				protein: Math.round(weekDays.reduce((sum, d) => sum + d.protein, 0) / daysLogged)
+			}
+		: null;
+	const weekSessions = sessions.filter((s) => s.date >= weekFrom && s.date <= today);
+	const week = {
+		daysLogged,
+		avg: weekAvg,
+		workouts: weekSessions.length,
+		sets: weekSessions.reduce((sum, s) => sum + s.setCount, 0)
+	};
 
 	// Today's workout status: the most recent session dated today, enriched with its plan's totals when
 	// it was started from a plan ("Push Day · 2/4 exercises · 6/10 sets").
@@ -72,6 +110,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 		summary,
 		entries,
 		todayWorkout,
+		weight: {
+			chart: weightChart,
+			latest: latestWeight,
+			weekDelta: weightWeekDelta,
+			hasAny: trendPoints.length > 0
+		},
+		week,
 		goals: goals.slice(0, 3),
 		exerciseProgress,
 		logMeals: meals.map((m) => ({ id: m.id, name: m.name, portions: m.portions, totalMacros: m.totalMacros })),
@@ -127,6 +172,39 @@ export const actions: Actions = {
 		const id = Number((await request.formData()).get('id'));
 		if (!Number.isFinite(id)) return fail(400, { error: 'Invalid entry' });
 		await deleteEntry(locals.user!.id, id);
+		return { success: true };
+	},
+
+	quickAdd: async ({ request, locals }) => {
+		const form = await request.formData();
+		const num = (key: string) => {
+			const raw = String(form.get(key) ?? '').trim();
+			return raw === '' ? 0 : Number(raw.replace(',', '.'));
+		};
+		const calories = num('calories');
+		if (!Number.isFinite(calories) || calories <= 0) return fail(400, { error: 'Calories are required' });
+		try {
+			await logQuickAdd(locals.user!.id, todayIso(), {
+				name: String(form.get('name') ?? ''),
+				calories,
+				protein: num('protein'),
+				carbs: num('carbs'),
+				fat: num('fat')
+			});
+		} catch (e) {
+			return fail(400, { error: e instanceof Error ? e.message : 'Could not log' });
+		}
+		return { success: true };
+	},
+
+	logWeight: async ({ request, locals }) => {
+		const form = await request.formData();
+		const weightKg = parseDecimal(String(form.get('weight') ?? ''));
+		try {
+			await logWeight(locals.user!.id, todayIso(), weightKg);
+		} catch (e) {
+			return fail(400, { weightError: e instanceof Error ? e.message : 'Could not log weight' });
+		}
 		return { success: true };
 	}
 };

@@ -7,6 +7,7 @@ import {
 	listDay,
 	logMealToDay,
 	logProductToDay,
+	logQuickAdd,
 	deleteEntry
 } from '$lib/server/repositories/nutritionLog';
 import { todayIso } from '$lib/utils/todayIso';
@@ -71,6 +72,30 @@ export const actions: Actions = {
 		const id = Number((await request.formData()).get('id'));
 		if (!Number.isFinite(id)) return fail(400, { error: 'Invalid entry' });
 		await deleteEntry(locals.user!.id, id);
+		return { success: true };
+	},
+
+	quickAdd: async ({ request, params, locals }) => {
+		const date = params.date;
+		if (!isValidIsoDate(date)) return fail(400, { error: 'Invalid date' });
+		const form = await request.formData();
+		const num = (key: string) => {
+			const raw = String(form.get(key) ?? '').trim();
+			return raw === '' ? 0 : Number(raw.replace(',', '.'));
+		};
+		const calories = num('calories');
+		if (!Number.isFinite(calories) || calories <= 0) return fail(400, { error: 'Calories are required' });
+		try {
+			await logQuickAdd(locals.user!.id, date, {
+				name: String(form.get('name') ?? ''),
+				calories,
+				protein: num('protein'),
+				carbs: num('carbs'),
+				fat: num('fat')
+			});
+		} catch (e) {
+			return fail(400, { error: e instanceof Error ? e.message : 'Could not log' });
+		}
 		return { success: true };
 	}
 };

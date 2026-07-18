@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import Modal from '$lib/components/Modal.svelte';
 	import TextField from '$lib/components/TextField.svelte';
+	import NumberField from '$lib/components/NumberField.svelte';
 	import NumberStepper from '$lib/components/NumberStepper.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -32,6 +33,14 @@
 	let scanBusy = $state(false);
 	let catalogResults = $state<CatalogMatch[]>([]);
 	let addingCatalog = $state(false);
+
+	// Quick add — log typed-in macros with no product behind them.
+	let quickAdd = $state(false);
+	let qaName = $state('');
+	let qaCalories = $state<number | null>(null);
+	let qaProtein = $state<number | null>(null);
+	let qaCarbs = $state<number | null>(null);
+	let qaFat = $state<number | null>(null);
 
 	const term = $derived(query.trim().toLowerCase());
 	const mealResults = $derived(meals.filter((m) => !term || m.name.toLowerCase().includes(term)));
@@ -125,6 +134,12 @@
 		portions = 1;
 		error = '';
 		catalogResults = [];
+		quickAdd = false;
+		qaName = '';
+		qaCalories = null;
+		qaProtein = null;
+		qaCarbs = null;
+		qaFat = null;
 	}
 
 	/** Scan from the log flow: a locally saved product is selected for logging on the spot; anything
@@ -200,6 +215,39 @@
 				<Button type="submit" variant="primary" full class="flex-1">Log</Button>
 			</div>
 		</form>
+	{:else if quickAdd}
+		<p class="mb-3 text-sm text-[var(--color-text-muted)]">
+			For meals you can't measure — log your best estimate and move on.
+		</p>
+		<form
+			method="POST"
+			action="?/quickAdd"
+			use:enhance={() => {
+				error = '';
+				return async ({ result, update }) => {
+					if (result.type === 'success') {
+						reset();
+					} else if (result.type === 'failure') {
+						error = (result.data?.error as string) ?? 'Could not log';
+					}
+					await update({ reset: false });
+				};
+			}}
+		>
+			<div class="space-y-3">
+				<TextField label="Name" name="name" bind:value={qaName} placeholder="e.g. Dinner out" />
+				<NumberField label="Calories" name="calories" bind:value={qaCalories} min={0} suffix="kcal" required />
+				<div class="grid grid-cols-3 gap-3">
+					<NumberField label="Protein" name="protein" bind:value={qaProtein} min={0} step={1} suffix="g" />
+					<NumberField label="Carbs" name="carbs" bind:value={qaCarbs} min={0} step={1} suffix="g" />
+					<NumberField label="Fat" name="fat" bind:value={qaFat} min={0} step={1} suffix="g" />
+				</div>
+			</div>
+			<div class="mt-4 flex gap-2">
+				<Button type="button" variant="ghost" onclick={() => (quickAdd = false)}>Back</Button>
+				<Button type="submit" variant="primary" full class="flex-1">Log</Button>
+			</div>
+		</form>
 	{:else}
 		<div class="mb-3 flex items-end gap-2">
 			<TextField name="query" type="search" placeholder="Search food…" bind:value={query} class="flex-1" />
@@ -269,6 +317,13 @@
 						: 'No matches — try another spelling, or scan the barcode.'}
 				</p>
 			{/if}
+		</div>
+
+		<div class="mt-3 border-t border-[var(--color-border)] pt-3">
+			<Button type="button" variant="ghost" full onclick={() => (quickAdd = true)}>
+				<Icon name="plus" size={16} />
+				Quick add — just the numbers
+			</Button>
 		</div>
 	{/if}
 

@@ -97,6 +97,31 @@ export async function logProductToDay(userId: number, productId: number, portion
 	return row;
 }
 
+export type QuickAddInput = { name?: string; calories: number; protein: number; carbs: number; fat: number };
+
+/** Logs a one-off entry with macros typed in directly — no meal or product behind it. The escape
+ *  hatch for restaurant meals and estimates, so an unmeasurable meal never breaks the day's log. */
+export async function logQuickAdd(userId: number, date: string, input: QuickAddInput) {
+	const values = [input.calories, input.protein, input.carbs, input.fat];
+	if (values.some((n) => !Number.isFinite(n) || n < 0)) throw new Error('Macros must be zero or more');
+
+	const [row] = await db
+		.insert(mealLogs)
+		.values({
+			userId,
+			date,
+			name: input.name?.trim() || 'Quick add',
+			portions: 1,
+			calories: input.calories,
+			protein: input.protein,
+			carbs: input.carbs,
+			fat: input.fat,
+			createdAt: new Date()
+		})
+		.returning();
+	return row;
+}
+
 export async function listDay(userId: number, date: string) {
 	return db
 		.select()
