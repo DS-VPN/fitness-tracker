@@ -166,6 +166,32 @@ export const mealShares = sqliteTable('meal_shares', {
 	check('meal_shares_scope_valid', sql`not (${t.mealId} is not null and ${t.categoryId} is not null)`)
 ]);
 
+/** Shared, read-only catalog of Norwegian food products imported from Open Food Facts (see
+ *  catalogData.ts / scripts/import-off-catalog.mjs). Global (no userId) — users search it and copy
+ *  a row into their own products on demand (addCatalogProductToUser). Macros are per `amount` `unit`
+ *  (always per 100 g/ml). offCode is the OFF barcode, used as the stable idempotent seed key. */
+export const catalogProducts = sqliteTable('catalog_products', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	offCode: text('off_code').notNull(),
+	name: text('name').notNull(),
+	brand: text('brand'),
+	barcode: text('barcode'),
+	amount: real('amount').notNull().default(100),
+	unit: text('unit').notNull().default('g'),
+	calories: real('calories').notNull().default(0),
+	protein: real('protein').notNull().default(0),
+	carbs: real('carbs').notNull().default(0),
+	fat: real('fat').notNull().default(0),
+	fiber: real('fiber'),
+	sugar: real('sugar'),
+	sodium: real('sodium'),
+	createdAt: timestamp('created_at')
+}, (t) => [
+	uniqueIndex('catalog_products_off_code_unique').on(t.offCode),
+	index('catalog_products_name_idx').on(t.name),
+	check('catalog_products_unit_valid', sql`${t.unit} in ('g', 'ml', 'pcs')`)
+]);
+
 export const exercises = sqliteTable('exercises', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),

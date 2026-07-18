@@ -22,18 +22,67 @@
 		products: ProductOption[];
 	} = $props();
 
+	type CatalogMatch = { id: number; name: string; brand: string | null; amount: number; unit: string; calories: number; protein: number; carbs: number; fat: number };
+
 	let query = $state('');
 	let selected = $state<Selected | null>(null);
 	let portions = $state(1);
 	let error = $state('');
 	let scanOpen = $state(false);
 	let scanBusy = $state(false);
+	let catalogResults = $state<CatalogMatch[]>([]);
+	let addingCatalog = $state(false);
 
 	const term = $derived(query.trim().toLowerCase());
 	const mealResults = $derived(meals.filter((m) => !term || m.name.toLowerCase().includes(term)));
 	const productResults = $derived(
 		products.filter((p) => !term || p.name.toLowerCase().includes(term) || p.brand?.toLowerCase().includes(term))
 	);
+
+	// Debounced catalog search. Hide catalog items the user already owns (same name+brand).
+	let catalogHandle: ReturnType<typeof setTimeout> | undefined;
+	$effect(() => {
+		const q = query.trim();
+		clearTimeout(catalogHandle);
+		if (q.length < 2 || selected) {
+			catalogResults = [];
+			return;
+		}
+		catalogHandle = setTimeout(async () => {
+			try {
+				const res = await fetch(`/api/catalog/search?q=${encodeURIComponent(q)}`);
+				if (!res.ok) return;
+				const data = (await res.json()) as { matches: CatalogMatch[] };
+				const owned = new Set(products.map((p) => `${p.name.toLowerCase()}|${(p.brand ?? '').toLowerCase()}`));
+				catalogResults = data.matches.filter((m) => !owned.has(`${m.name.toLowerCase()}|${(m.brand ?? '').toLowerCase()}`));
+			} catch {
+				catalogResults = [];
+			}
+		}, 300);
+		return () => clearTimeout(catalogHandle);
+	});
+
+	/** Add a catalog product to the user's own products, then select it for logging. */
+	async function pickCatalog(c: CatalogMatch) {
+		if (addingCatalog) return;
+		addingCatalog = true;
+		error = '';
+		try {
+			const res = await fetch('/api/catalog/add', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ catalogId: c.id })
+			});
+			if (!res.ok) throw new Error();
+			const { product } = await res.json();
+			pickProduct(product);
+			catalogResults = [];
+		} catch {
+			error = 'Could not add that product — try again.';
+		} finally {
+			addingCatalog = false;
+		}
+	}
 
 	function mealKcalPerPortion(meal: MealOption) {
 		const recipePortions = meal.portions > 0 ? meal.portions : 1;
@@ -70,6 +119,7 @@
 		selected = null;
 		portions = 1;
 		error = '';
+		catalogResults = [];
 	}
 
 	/** Scan from the log flow: a locally saved product is selected for logging on the spot; anything
@@ -193,9 +243,31 @@
 					>
 				</button>
 			{/each}
-			{#if mealResults.length === 0 && productResults.length === 0}
+			{#if catalogResults.length > 0}
+				<p class="px-3 pt-2 pb-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+					From catalog
+				</p>
+				{#each catalogResults as c (c.id)}
+					<button
+						type="button"
+						onclick={() => pickCatalog(c)}
+						disabled={addingCatalog}
+						class="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-[var(--radius-md)] hover:bg-[var(--color-surface-alt)] text-left disabled:opacity-50"
+					>
+						<span class="min-w-0">
+							<span class="block truncate text-[var(--color-text)]">
+								{c.name}{#if c.brand}<span class="text-[var(--color-text-muted)]"> · {c.brand}</span>{/if}
+							</span>
+							<span class="text-xs text-[var(--color-text-muted)]">{Math.round(c.calories)} kcal / {c.amount}{c.unit}</span>
+						</span>
+						<Icon name="plus" size={16} class="shrink-0 text-[var(--color-text-muted)]" />
+					</button>
+				{/each}
+			{/if}
+
+			{#if mealResults.length === 0 && productResults.length === 0 && catalogResults.length === 0}
 				<p class="text-sm text-[var(--color-text-muted)] px-3 py-2">
-					No matches. Build meals under Meals, or add products under Shopping → Products.
+					{term.length < 2 ? 'Type to search your meals, products, and the Norwegian catalog.' : 'No matches. Build meals under Meals, or add products under Shopping → Products.'}
 				</p>
 			{/if}
 		</div>

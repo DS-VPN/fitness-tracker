@@ -28,6 +28,8 @@
 		subMeals: MealOption[];
 	} = $props();
 
+	type CatalogMatch = { id: number; name: string; brand: string | null; amount: number; unit: string; calories: number; protein: number; carbs: number; fat: number };
+
 	let query = $state('');
 	let selected = $state<{ type: 'product' | 'meal'; id: number; name: string; amount?: number; unit?: string } | null>(null);
 	let quantity = $state(1);
@@ -35,6 +37,8 @@
 	let error = $state('');
 	let scanOpen = $state(false);
 	let scanBusy = $state(false);
+	let catalogResults = $state<CatalogMatch[]>([]);
+	let addingCatalog = $state(false);
 
 	// New-product mini-form fields
 	let newName = $state('');
@@ -64,6 +68,53 @@
 		selected = { type: item.type, id: item.id, name: item.name, amount: item.amount, unit: item.unit };
 		quantity = item.type === 'product' && item.amount ? item.amount : 1;
 		error = '';
+	}
+
+	// Debounced catalog search — only while browsing (not on a selected/create step). Hides items
+	// the user already owns (same name+brand).
+	let catalogHandle: ReturnType<typeof setTimeout> | undefined;
+	$effect(() => {
+		const q = query.trim();
+		clearTimeout(catalogHandle);
+		if (q.length < 2 || selected || creatingProduct) {
+			catalogResults = [];
+			return;
+		}
+		catalogHandle = setTimeout(async () => {
+			try {
+				const res = await fetch(`/api/catalog/search?q=${encodeURIComponent(q)}`);
+				if (!res.ok) return;
+				const data = (await res.json()) as { matches: CatalogMatch[] };
+				const owned = new Set(products.map((p) => `${p.name.toLowerCase()}|${(p.brand ?? '').toLowerCase()}`));
+				catalogResults = data.matches.filter((m) => !owned.has(`${m.name.toLowerCase()}|${(m.brand ?? '').toLowerCase()}`));
+			} catch {
+				catalogResults = [];
+			}
+		}, 300);
+		return () => clearTimeout(catalogHandle);
+	});
+
+	/** Add a catalog product to the user's own products, then select it as a product ingredient. */
+	async function pickCatalog(c: CatalogMatch) {
+		if (addingCatalog) return;
+		addingCatalog = true;
+		error = '';
+		try {
+			const res = await fetch('/api/catalog/add', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ catalogId: c.id })
+			});
+			if (!res.ok) throw new Error();
+			const { product } = await res.json();
+			selected = { type: 'product', id: product.id, name: product.name, amount: product.amount, unit: product.unit };
+			quantity = product.amount;
+			catalogResults = [];
+		} catch {
+			error = 'Could not add that product — try again.';
+		} finally {
+			addingCatalog = false;
+		}
 	}
 
 	function startCreatingProduct(prefill?: {
@@ -99,6 +150,7 @@
 		quantity = 1;
 		creatingProduct = false;
 		error = '';
+		catalogResults = [];
 	}
 
 	function reset() {
@@ -247,9 +299,31 @@
 					{/if}
 				</button>
 			{/each}
-			{#if results.length === 0}
+			{#if catalogResults.length > 0}
+				<p class="px-3 pt-2 pb-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+					From catalog
+				</p>
+				{#each catalogResults as c (c.id)}
+					<button
+						type="button"
+						onclick={() => pickCatalog(c)}
+						disabled={addingCatalog}
+						class="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-[var(--radius-md)] hover:bg-[var(--color-surface-alt)] text-left disabled:opacity-50"
+					>
+						<span class="min-w-0">
+							<span class="block truncate text-[var(--color-text)]">
+								{c.name}{#if c.brand}<span class="text-[var(--color-text-muted)]"> · {c.brand}</span>{/if}
+							</span>
+							<span class="text-xs text-[var(--color-text-muted)]">{Math.round(c.calories)} kcal / {c.amount}{c.unit}</span>
+						</span>
+						<Icon name="plus" size={16} class="shrink-0 text-[var(--color-text-muted)]" />
+					</button>
+				{/each}
+			{/if}
+
+			{#if results.length === 0 && catalogResults.length === 0}
 				<p class="text-sm text-[var(--color-text-muted)] px-3 py-2">
-					{query.trim() ? 'No matches — create a new product below.' : 'Type to search, or create a new product below.'}
+					{query.trim() ? 'No matches — create a new product below.' : 'Type to search your products, meals, and the Norwegian catalog.'}
 				</p>
 			{/if}
 		</div>
