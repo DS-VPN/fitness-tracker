@@ -22,12 +22,13 @@
 
 	const key = `hint:${id}`;
 
-	// Render only after mount, and only if this hint hasn't been dismissed before. Kept
-	// client-side (localStorage) so it never flashes for users who already dismissed it.
+	// Render only after mount, and only if this hint hasn't been dismissed in this app session.
+	// sessionStorage (not localStorage) on purpose: a dismissal holds across in-app navigation,
+	// but every fresh launch/restart starts a new session, so the hints reappear.
 	let show = $state(false);
 	$effect(() => {
 		try {
-			show = localStorage.getItem(key) !== '1';
+			show = sessionStorage.getItem(key) !== '1';
 		} catch {
 			show = true;
 		}
@@ -36,7 +37,7 @@
 	function dismiss() {
 		show = false;
 		try {
-			localStorage.setItem(key, '1');
+			sessionStorage.setItem(key, '1');
 		} catch {
 			// ignore — worst case the hint reappears next visit
 		}
