@@ -16,17 +16,15 @@ import {
 	recentDaySummaries,
 	deleteEntry
 } from '$lib/server/repositories/nutritionLog';
-import { listWeights, logWeight, withTrend } from '$lib/server/repositories/bodyWeight';
 import { todayIso } from '$lib/utils/todayIso';
 import { shiftIsoDate } from '$lib/utils/isoDate';
-import { parseDecimal } from '$lib/utils/parseDecimal';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const userId = locals.user!.id;
 	const today = todayIso();
 
-	const [targets, summary, entries, sessions, goals, exerciseProgress, meals, products, weights, recentDays] =
+	const [targets, summary, entries, sessions, goals, exerciseProgress, meals, products, recentDays] =
 		await Promise.all([
 			getTargets(userId),
 			daySummary(userId, today),
@@ -36,21 +34,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			recentExerciseProgress(userId, 3),
 			listMeals(userId),
 			listProducts(userId),
-			// 90 days back so the trend line has warm-up history behind the charted window.
-			listWeights(userId, shiftIsoDate(today, -89)),
 			recentDaySummaries(userId, 30)
 		]);
-
-	// Body weight: smoothed trend over the last 90 days, charted for the last 30.
-	const trendPoints = withTrend(weights);
-	const chartFrom = shiftIsoDate(today, -29);
-	const weightChart = trendPoints.filter((p) => p.date >= chartFrom);
-	const latestWeight = trendPoints.at(-1) ?? null;
-	// Week-over-week change of the trend (not the noisy scale reading).
-	const weekAgo = shiftIsoDate(today, -7);
-	const trendWeekAgo = [...trendPoints].reverse().find((p) => p.date <= weekAgo) ?? null;
-	const weightWeekDelta =
-		latestWeight && trendWeekAgo ? Math.round((latestWeight.trendKg - trendWeekAgo.trendKg) * 10) / 10 : null;
 
 	// This week: the last 7 calendar days of food + training, averaged over days actually logged.
 	const weekFrom = shiftIsoDate(today, -6);
@@ -110,12 +95,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 		summary,
 		entries,
 		todayWorkout,
-		weight: {
-			chart: weightChart,
-			latest: latestWeight,
-			weekDelta: weightWeekDelta,
-			hasAny: trendPoints.length > 0
-		},
 		week,
 		goals: goals.slice(0, 3),
 		exerciseProgress,
@@ -193,17 +172,6 @@ export const actions: Actions = {
 			});
 		} catch (e) {
 			return fail(400, { error: e instanceof Error ? e.message : 'Could not log' });
-		}
-		return { success: true };
-	},
-
-	logWeight: async ({ request, locals }) => {
-		const form = await request.formData();
-		const weightKg = parseDecimal(String(form.get('weight') ?? ''));
-		try {
-			await logWeight(locals.user!.id, todayIso(), weightKg);
-		} catch (e) {
-			return fail(400, { weightError: e instanceof Error ? e.message : 'Could not log weight' });
 		}
 		return { success: true };
 	}

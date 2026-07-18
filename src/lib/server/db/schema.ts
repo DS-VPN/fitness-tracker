@@ -8,14 +8,8 @@ export const users = sqliteTable('users', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	username: text('username').notNull(),
 	passwordHash: text('password_hash').notNull(),
-	/** Bearer token for the personal API (e.g. the Apple Health weight-sync Shortcut). Null until
-	 *  the user reveals their setup in Settings; a secret on par with a session token. */
-	apiToken: text('api_token'),
 	createdAt: timestamp('created_at')
-}, (t) => [
-	uniqueIndex('users_username_lower_unique').on(sql`lower(${t.username})`),
-	uniqueIndex('users_api_token_unique').on(t.apiToken)
-]);
+}, (t) => [uniqueIndex('users_username_lower_unique').on(sql`lower(${t.username})`)]);
 
 export const sessions = sqliteTable('sessions', {
 	id: text('id').primaryKey(),
@@ -283,21 +277,6 @@ export const mealLogs = sqliteTable('meal_logs', {
 	productId: integer('product_id').references(() => products.id, { onDelete: 'set null' }),
 	createdAt: timestamp('created_at')
 }, (t) => [index('meal_logs_user_date_idx').on(t.userId, t.date)]);
-
-/** Daily body-weight log, one row per user per local date (repeat logs for a day overwrite —
- *  upsert semantics). weightKg stores whatever precision the user/scale entered. The smoothed
- *  trend is always computed at read time, never stored. */
-export const bodyWeights = sqliteTable('body_weights', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-	date: text('date').notNull(),
-	weightKg: real('weight_kg').notNull(),
-	createdAt: timestamp('created_at'),
-	updatedAt: timestamp('updated_at')
-}, (t) => [
-	unique('body_weights_user_date_unique').on(t.userId, t.date),
-	index('body_weights_user_idx').on(t.userId)
-]);
 
 /** One active strength goal per exercise (upsert semantics — the UNIQUE is droppable later for goal history). */
 export const exerciseGoals = sqliteTable('exercise_goals', {

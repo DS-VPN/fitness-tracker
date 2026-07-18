@@ -47,26 +47,6 @@ export async function createSession(userId: number): Promise<{ token: string; ex
 	return { token, expiresAt };
 }
 
-/** Resolves a personal API bearer token (see ensureApiToken) to its user. */
-export async function getUserByApiToken(token: string): Promise<SessionUser | null> {
-	if (!token) return null;
-	const [row] = await db
-		.select({ id: users.id, username: users.username })
-		.from(users)
-		.where(eq(users.apiToken, token));
-	return row ?? null;
-}
-
-/** The user's personal API token for external integrations (e.g. the Apple Health weight-sync
- *  Shortcut), minted on first request and stable afterwards. */
-export async function ensureApiToken(userId: number): Promise<string> {
-	const [row] = await db.select({ apiToken: users.apiToken }).from(users).where(eq(users.id, userId));
-	if (row?.apiToken) return row.apiToken;
-	const token = randomBytes(24).toString('hex');
-	await db.update(users).set({ apiToken: token }).where(eq(users.id, userId));
-	return token;
-}
-
 export async function getSessionUser(token: string | undefined): Promise<SessionUser | null> {
 	if (!token) return null;
 	const [row] = await db
