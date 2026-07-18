@@ -2,7 +2,26 @@ import { db } from '$lib/server/db';
 import { exercises, users, catalogProducts } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { presetExercises } from '$lib/server/presetData';
-import { catalogProducts as catalogData } from '$lib/server/catalogData';
+// Loaded as a raw string (not an imported module) so the ~11k-row catalog ships as a single
+// bundled string instead of a huge JS/JSON literal — keeps both the build and the type-checker
+// fast and low-memory. Parsed once, lazily, in seedCatalog().
+import catalogJson from '$lib/server/catalogData.json?raw';
+
+type CatalogSeed = {
+	offCode: string;
+	name: string;
+	brand: string | null;
+	barcode: string | null;
+	amount: number;
+	unit: string;
+	calories: number;
+	protein: number;
+	carbs: number;
+	fat: number;
+	fiber: number | null;
+	sugar: number | null;
+	sodium: number | null;
+};
 
 /** Inserts any preset exercises userId doesn't already have (matched by name). Safe to call repeatedly. */
 export async function seedPresetsForUser(userId: number) {
@@ -28,6 +47,7 @@ export async function seedPresetsForAllUsers() {
 /** Seeds the shared Open Food Facts product catalog (global, not per-user). Idempotent: keyed on
  *  off_code with onConflictDoNothing, so re-runs on every boot are cheap and never duplicate. */
 export async function seedCatalog() {
+	const catalogData = JSON.parse(catalogJson) as CatalogSeed[];
 	if (catalogData.length === 0) return;
 	const now = new Date();
 	// Insert in chunks to stay well under SQLite's variable limit.
