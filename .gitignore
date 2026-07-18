@@ -28,3 +28,4 @@ vite.config.ts.timestamp-*
 
 # Local Claude Code session state (not part of the app)
 .claude/
+catalog-dump.jsonl
