@@ -6,11 +6,17 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import HintCard from '$lib/components/HintCard.svelte';
+	import { todayIso } from '$lib/utils/todayIso';
+	import { shiftIsoDate } from '$lib/utils/isoDate';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
+	const today = todayIso();
+
 	function formatDate(d: string) {
+		if (d === today) return 'Today';
+		if (d === shiftIsoDate(today, -1)) return 'Yesterday';
 		const date = new Date(`${d}T00:00:00`);
 		return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 	}
@@ -33,8 +39,8 @@
 
 <div class="mx-auto max-w-md px-4 space-y-4">
 	<HintCard id="workouts-intro" icon="dumbbell">
-		Start a workout to log sets and weights. Save routines as <strong>Plans</strong>, and
-		set target weights on <strong>Exercises</strong> to track goals on your home screen.
+		Start a workout to log sets and weight. Save routines as <strong>Plans</strong>, and set
+		goals on <strong>Exercises</strong> to track them from Today.
 	</HintCard>
 
 	<form method="POST" action="?/start" use:enhance>
@@ -48,7 +54,7 @@
 		<EmptyState
 			icon="dumbbell"
 			title="No workouts yet"
-			description="Tap Start workout to log your first sets. Your progress and goals will build up here over time."
+			description="Start your first session — your sets, weights, and progress build up here."
 		/>
 	{:else}
 		<div class="space-y-3">

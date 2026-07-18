@@ -24,10 +24,11 @@
 	} = $props();
 
 	const base =
-		'inline-flex items-center justify-center gap-1.5 font-medium transition-colors rounded-[var(--radius-md)] disabled:opacity-50 disabled:pointer-events-none select-none';
+		'inline-flex items-center justify-center gap-1.5 font-medium transition duration-150 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none select-none';
 
 	const variants: Record<string, string> = {
-		primary: 'bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] active:bg-[var(--color-accent-hover)]',
+		primary:
+			'bg-[var(--color-accent)] text-[var(--color-on-accent)] hover:bg-[var(--color-accent-hover)] active:bg-[var(--color-accent-hover)]',
 		secondary:
 			'bg-[var(--color-surface-alt)] text-[var(--color-text)] hover:brightness-95 active:brightness-90',
 		ghost: 'bg-transparent text-[var(--color-text)] hover:bg-[var(--color-surface-alt)]',
@@ -35,9 +36,9 @@
 	};
 
 	const sizes: Record<string, string> = {
-		md: 'h-11 px-4 text-[15px]',
-		lg: 'h-13 px-5 text-base',
-		icon: 'h-11 w-11 shrink-0'
+		md: 'h-11 px-4 text-[15px] rounded-[var(--radius-md)]',
+		lg: 'h-13 px-5 text-base rounded-[var(--radius-md)]',
+		icon: 'h-11 w-11 shrink-0 rounded-full'
 	};
 
 	const classes = $derived(`${base} ${variants[variant]} ${sizes[size]} ${full ? 'w-full' : ''} ${className}`);

@@ -15,12 +15,12 @@
 	<div class="w-full max-w-xs">
 		<div class="text-center mb-8">
 			<div
-				class="mx-auto mb-4 h-14 w-14 rounded-[var(--radius-lg)] bg-[var(--color-accent)] flex items-center justify-center text-white text-2xl font-serif font-semibold"
+				class="mx-auto mb-4 h-14 w-14 rounded-[var(--radius-lg)] bg-[var(--color-accent)] flex items-center justify-center text-[var(--color-on-accent)] text-2xl font-serif font-semibold"
 			>
 				F
 			</div>
 			<h1 class="text-2xl text-[var(--color-text)]">Create your account</h1>
-			<p class="text-sm text-[var(--color-text-muted)] mt-1">Your own private meals, list, and workouts</p>
+			<p class="text-sm text-[var(--color-text-muted)] mt-1">Your meals, list, and workouts — private to you</p>
 		</div>
 
 		<form method="POST" class="space-y-4">

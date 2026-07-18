@@ -60,6 +60,13 @@
 	let showOptional = $state(initial?.fiber != null || initial?.sugar != null || initial?.sodium != null);
 	let submitting = $state(false);
 
+	// Label the nutrition group with the serving it describes, so "per what?" never needs explaining.
+	const nutritionLabel = $derived.by(() => {
+		if (amount == null) return 'Nutrition per serving';
+		if (unit === 'pcs') return `Nutrition per ${amount} ${amount === 1 ? 'piece' : 'pieces'}`;
+		return `Nutrition per ${amount} ${unit}`;
+	});
+
 	function focusName() {
 		document.getElementById('field-name')?.focus();
 	}
@@ -95,19 +102,16 @@
 	<input type="hidden" name="barcode" value={barcode} />
 	{#if barcode}
 		<p class="text-xs text-[var(--color-text-muted)] -mt-3">
-			Barcode {barcode} — future scans of it will find this product instantly.
+			Barcode {barcode} saved — scanning it again will find this product instantly.
 		</p>
 	{/if}
 	<div class="grid grid-cols-2 gap-3">
 		<NumberField label="Amount" name="amount" bind:value={amount} min={0.01} step={0.01} required />
 		<SelectField label="Unit" name="unit" bind:value={unit} options={UNIT_OPTIONS} />
 	</div>
-	<p class="text-xs text-[var(--color-text-muted)] -mt-3">
-		The macros below are per this amount — e.g. 100 g, or 1 piece.
-	</p>
 
 	<div>
-		<p class="mb-1.5 text-sm font-medium text-[var(--color-text)]">Macros</p>
+		<p class="mb-1.5 text-sm font-medium text-[var(--color-text)]">{nutritionLabel}</p>
 		<div class="grid grid-cols-2 gap-3">
 			<NumberField label="Calories" name="calories" bind:value={calories} min={0} suffix="kcal" required />
 			<NumberField label="Protein" name="protein" bind:value={protein} min={0} step={0.1} suffix="g" required />

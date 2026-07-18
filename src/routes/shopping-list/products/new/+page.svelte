@@ -97,15 +97,14 @@
 <PageHeader title="New product" back="/shopping-list/products" actions={headerActions} />
 
 <div class="mx-auto max-w-md px-4 pt-2 space-y-5">
-	<p class="text-sm text-[var(--color-text-muted)]">
-		Add products one after another — the form clears and stays open so you can keep going. Tap "Done" when
-		you're finished.
-	</p>
-
 	<Button variant="secondary" full class="w-full" onclick={() => (scanOpen = true)} disabled={scanBusy}>
 		<Icon name="scan" size={18} />
 		{scanBusy ? 'Looking up…' : 'Scan barcode'}
 	</Button>
+
+	<p class="text-sm text-[var(--color-text-muted)]">
+		The form clears after each save, so you can add several in a row.
+	</p>
 	{#if scanMessage}
 		<p class="text-sm text-[var(--color-text-muted)]">{scanMessage}</p>
 	{/if}
@@ -116,8 +115,8 @@
 
 	{#if added.length > 0}
 		<div class="border-t border-[var(--color-border)] pt-4">
-			<h2 class="mb-2 px-1 text-sm font-medium text-[var(--color-text-muted)]">
-				Added this session ({added.length})
+			<h2 class="section-label mb-2 px-1">
+				Added just now · {added.length}
 			</h2>
 			<div class="space-y-2">
 				{#each added as product (product.id)}

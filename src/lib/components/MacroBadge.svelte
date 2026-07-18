@@ -10,7 +10,7 @@
 	const fmt = (n: number) => (Number.isInteger(n) ? n : Math.round(n * 10) / 10);
 </script>
 
-<p class={`text-sm text-[var(--color-text-muted)] ${className}`}>
+<p class={`text-sm text-[var(--color-text-muted)] tabular-nums ${className}`}>
 	<span class="font-medium text-[var(--color-text)]">{fmt(calories)}</span> kcal
 	<span class="mx-1 opacity-50">·</span>{fmt(protein)}p
 	<span class="mx-1 opacity-50">·</span>{fmt(carbs)}c

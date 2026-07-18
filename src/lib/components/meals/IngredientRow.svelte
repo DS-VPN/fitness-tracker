@@ -46,11 +46,7 @@
 			<div class="flex items-center gap-1.5">
 				<span class="font-medium text-[var(--color-text)] truncate">{ingredient.name}</span>
 				{#if ingredient.type === 'meal'}
-					<span
-						class="shrink-0 rounded-full bg-[var(--color-surface-alt)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]"
-					>
-						Meal
-					</span>
+					<span class="type-pill">Meal</span>
 				{/if}
 			</div>
 			<p class="text-xs text-[var(--color-text-muted)]">

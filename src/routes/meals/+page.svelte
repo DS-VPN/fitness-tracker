@@ -100,9 +100,9 @@
 
 {#snippet headerActions()}
 	{#if data.isOwner}
-		<Button variant="ghost" size="md" onclick={() => (manageOpen = true)}>
-			<Icon name="tag" size={17} />
-			Categories
+		<Button variant="ghost" size="icon" onclick={() => (manageOpen = true)}>
+			<Icon name="tag" size={19} />
+			<span class="sr-only">Manage categories</span>
 		</Button>
 		<Button variant="ghost" size="md" onclick={() => (shareOpen = true)}>Share</Button>
 		<Button href="/meals/new" variant="primary" size="md">
@@ -119,22 +119,21 @@
 
 <PageHeader title={data.isOwner ? 'Meals' : `${data.ownerUsername}'s meals`} actions={headerActions} />
 
-<div class="mx-auto max-w-md px-4 pb-4">
+<div class="mx-auto max-w-md px-4 pb-6 space-y-3">
 	{#if data.isOwner}
 		<HintCard id="meals-intro" icon="meals">
-			Meals are your food library. Build one from ingredients, then <strong>log it to Today</strong>
-			to fill your targets or <strong>send its ingredients to your shopping list</strong>. Tap
-			<strong>Share</strong> to let a friend see your recipes.
+			Meals are your food library. Build one from ingredients, then log it to Today in a
+			tap — or send what you need to your <strong>shopping list</strong>.
 		</HintCard>
 	{:else}
 		<HintCard id="meals-shared-intro" icon="meals">
-			You're viewing <strong>{data.ownerUsername}'s</strong> shared meals. You can log them to your
-			day and add their ingredients to your shopping list, but only {data.ownerUsername} can edit them.
+			You're browsing <strong>{data.ownerUsername}'s</strong> meals. Log them to your day or
+			add ingredients to your list — only {data.ownerUsername} can edit them.
 		</HintCard>
 	{/if}
 
 	{#if data.sharedWithMe.length > 0}
-		<div class="mt-3 flex gap-2 overflow-x-auto pb-1">
+		<div class="flex gap-2 overflow-x-auto pb-1">
 			<Chip selected={data.isOwner} onclick={() => goto('/meals')}>Mine</Chip>
 			{#each data.sharedWithMe as shared (shared.ownerId)}
 				<Chip
@@ -147,9 +146,9 @@
 		</div>
 	{/if}
 
-	<TextField name="search" type="search" bind:value={search} placeholder="Search meals or brands" class="mt-3 mb-3" />
+	<TextField name="search" type="search" bind:value={search} placeholder="Search meals or brands" />
 
-	<div class="mb-4 flex gap-2 overflow-x-auto pb-1">
+	<div class="flex gap-2 overflow-x-auto pb-1">
 		<Chip selected={data.categoryId === null} onclick={() => selectCategory(null)}>All</Chip>
 		{#each data.categories as c (c.id)}
 			<Chip selected={data.categoryId === c.id} onclick={() => selectCategory(c.id)}>{c.name}</Chip>
@@ -162,7 +161,7 @@
 				<EmptyState
 					icon="meals"
 					title="No meals yet"
-					description="Build your first meal from ingredients — then log it to your day or send it to your shopping list."
+					description="Build your first meal from ingredients. Once it's saved, logging it takes a single tap."
 				>
 					<Button href="/meals/new" variant="primary">Add a meal</Button>
 				</EmptyState>
@@ -175,15 +174,15 @@
 			{/if}
 		{:else}
 			<div class="py-10 text-center">
-				<p class="mb-3 text-sm text-[var(--color-text-muted)]">No meals match your search or filter.</p>
+				<p class="mb-3 text-sm text-[var(--color-text-muted)]">Nothing matches your search.</p>
 				<Button variant="secondary" onclick={clearFilters}>Clear filters</Button>
 			</div>
 		{/if}
 	{:else}
-		<div class="space-y-6">
+		<div class="space-y-6 pt-1">
 			{#each grouped as group (group.key)}
 				<section>
-					<h2 class="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+					<h2 class="section-label mb-2 px-1">
 						{group.name}
 					</h2>
 					<div class="space-y-2">

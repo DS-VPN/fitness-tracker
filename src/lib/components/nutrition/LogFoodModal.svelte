@@ -89,6 +89,11 @@
 		return meal.totalMacros.calories / recipePortions;
 	}
 
+	function unitWord(kind: 'meal' | 'product', n: number) {
+		const base = kind === 'meal' ? 'portion' : 'serving';
+		return n === 1 ? base : `${base}s`;
+	}
+
 	function pickMeal(meal: MealOption) {
 		selected = {
 			kind: 'meal',
@@ -169,7 +174,7 @@
 		</p>
 		<p class="mb-3 text-xs text-[var(--color-text-muted)]">
 			≈ {Math.round(selected.kcalPerPortion * portions)} kcal for {portions}
-			{selected.unitLabel.toLowerCase()}
+			{unitWord(selected.kind, portions)}
 		</p>
 		<form
 			method="POST"
@@ -197,7 +202,7 @@
 		</form>
 	{:else}
 		<div class="mb-3 flex items-end gap-2">
-			<TextField name="query" type="search" placeholder="Search meals and products…" bind:value={query} class="flex-1" />
+			<TextField name="query" type="search" placeholder="Search food…" bind:value={query} class="flex-1" />
 			<Button type="button" variant="secondary" size="icon" onclick={() => (scanOpen = true)} disabled={scanBusy}>
 				<Icon name="scan" size={20} />
 				<span class="sr-only">Scan barcode</span>
@@ -217,10 +222,7 @@
 							>{Math.round(mealKcalPerPortion(meal))} kcal / portion</span
 						>
 					</span>
-					<span
-						class="shrink-0 rounded-full bg-[var(--color-surface-alt)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]"
-						>Meal</span
-					>
+					<span class="type-pill">Meal</span>
 				</button>
 			{/each}
 			{#each productResults as product (product.id)}
@@ -237,16 +239,11 @@
 							{Math.round(product.calories)} kcal / {product.amount}{product.unit}
 						</span>
 					</span>
-					<span
-						class="shrink-0 rounded-full bg-[var(--color-surface-alt)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]"
-						>Product</span
-					>
+					<span class="type-pill">Product</span>
 				</button>
 			{/each}
 			{#if catalogResults.length > 0}
-				<p class="px-3 pt-2 pb-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-					From catalog
-				</p>
+				<p class="section-label px-3 pt-2 pb-1">From the catalog</p>
 				{#each catalogResults as c (c.id)}
 					<button
 						type="button"
@@ -267,7 +264,9 @@
 
 			{#if mealResults.length === 0 && productResults.length === 0 && catalogResults.length === 0}
 				<p class="text-sm text-[var(--color-text-muted)] px-3 py-2">
-					{term.length < 2 ? 'Type to search your meals, products, and the Norwegian catalog.' : 'No matches. Build meals under Meals, or add products under Shopping → Products.'}
+					{term.length < 2
+						? 'Search your meals, your products, and the Norwegian food catalog.'
+						: 'No matches — try another spelling, or scan the barcode.'}
 				</p>
 			{/if}
 		</div>

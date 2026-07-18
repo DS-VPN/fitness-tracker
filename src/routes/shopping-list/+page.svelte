@@ -31,9 +31,9 @@
 	}
 </script>
 
-<svelte:head><title>Shopping List · Fitness Tracker</title></svelte:head>
+<svelte:head><title>Shopping list · Fitness Tracker</title></svelte:head>
 
-<PageHeader title={data.isOwner ? 'Shopping List' : `${data.ownerUsername}'s list`}>
+<PageHeader title={data.isOwner ? 'Shopping list' : `${data.ownerUsername}'s list`}>
 	{#snippet actions()}
 		{#if data.isOwner}
 			<Button href="/shopping-list/products" variant="ghost" size="icon">
@@ -59,9 +59,8 @@
 <div class="mx-auto max-w-md px-4 space-y-6">
 	{#if data.isOwner}
 		<HintCard id="shopping-intro" icon="cart">
-			Items you send from a <strong>meal</strong> land in "From your meals" and stay in
-			sync with that recipe. Add anything else by hand below, and <strong>Share</strong>
-			your list so others can check things off with you.
+			Ingredients you send from a meal stay grouped under <strong>From your meals</strong>.
+			Add anything else below — or share the list and shop it together.
 		</HintCard>
 	{/if}
 
@@ -83,7 +82,7 @@
 		<EmptyState
 			icon="cart"
 			title="Your list is empty"
-			description="Open any meal and tap “Add ingredients to shopping list,” or add an item by hand below."
+			description="Open any meal and tap “Add ingredients” — or jot something down below."
 		>
 			{#if data.isOwner}
 				<Button href="/meals" variant="secondary">Browse meals</Button>
@@ -92,7 +91,7 @@
 	{:else}
 		{#if data.fromMeals.length > 0}
 			<section>
-				<h2 class="text-sm font-medium text-[var(--color-text-muted)] mb-2 px-1">From your meals</h2>
+				<h2 class="section-label mb-2 px-1">From your meals</h2>
 				<div class="space-y-2">
 					{#each data.fromMeals as item (item.id)}
 						<ShoppingItemRow {item} ownerId={data.ownerId} />
@@ -103,7 +102,7 @@
 
 		{#if data.manual.length > 0}
 			<section>
-				<h2 class="text-sm font-medium text-[var(--color-text-muted)] mb-2 px-1">Other items</h2>
+				<h2 class="section-label mb-2 px-1">Other items</h2>
 				<div class="space-y-2">
 					{#each data.manual as item (item.id)}
 						<ShoppingItemRow {item} ownerId={data.ownerId} />
@@ -128,7 +127,7 @@
 				};
 			}}
 		>
-			<h2 class="text-sm font-medium text-[var(--color-text)]">Add item</h2>
+			<h2 class="section-label">Add an item</h2>
 			<input type="hidden" name="ownerId" value={data.ownerId} />
 			<TextField label="Name" name="name" placeholder="e.g. Oat milk" bind:value={newName} required />
 			<TextField label="Brand (optional)" name="brand" placeholder="e.g. Oatly" bind:value={newBrand} />

@@ -65,8 +65,8 @@
 <div class="mx-auto max-w-md px-4 space-y-4">
 	<Card>
 		<div class="flex items-center justify-between mb-1">
-			<h2 class="text-sm font-medium text-[var(--color-text)] flex items-center gap-1.5">
-				<Icon name="target" size={16} class="text-[var(--color-accent)]" />
+			<h2 class="section-label flex items-center gap-1.5">
+				<Icon name="target" size={15} class="text-[var(--color-accent)]" />
 				Goal
 			</h2>
 			{#if data.goal && !editingGoal}
@@ -157,7 +157,7 @@
 		<EmptyState
 			icon="dumbbell"
 			title="No sets logged yet"
-			description="Log sets for this exercise in a workout to see your progress here."
+			description="Log this exercise in a workout and your progress will chart itself here."
 		/>
 	{:else}
 		<div class="grid grid-cols-3 gap-3">
@@ -167,12 +167,12 @@
 		</div>
 
 		<Card>
-			<h2 class="text-sm font-medium text-[var(--color-text-muted)] mb-3">Top weight over time</h2>
+			<h2 class="section-label mb-3">Top weight over time</h2>
 			<ProgressChart history={progress.history} />
 		</Card>
 
 		<div class="space-y-3">
-			<h2 class="text-sm font-medium text-[var(--color-text-muted)] px-1">History</h2>
+			<h2 class="section-label px-1">History</h2>
 			{#each sessionsDesc as session (session.sessionId)}
 				<Card>
 					<div class="flex items-center justify-between mb-2">

@@ -61,10 +61,10 @@
 			type="submit"
 			aria-label="Log set"
 			disabled={submitting}
-			class={`h-12 w-12 shrink-0 flex items-center justify-center rounded-[var(--radius-md)] transition-colors disabled:opacity-60 ${
+			class={`h-12 w-12 shrink-0 flex items-center justify-center rounded-[var(--radius-md)] text-[var(--color-on-accent)] transition-colors disabled:opacity-60 ${
 				justAdded
-					? 'bg-[var(--color-success)] text-white'
-					: 'bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)]'
+					? 'bg-[var(--color-success)]'
+					: 'bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)]'
 			}`}
 		>
 			<Icon name="check" size={20} />

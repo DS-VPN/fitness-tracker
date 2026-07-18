@@ -4,7 +4,6 @@
 	import Card from '$lib/components/Card.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import Chip from '$lib/components/Chip.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import IngredientRow from '$lib/components/meals/IngredientRow.svelte';
 	import IngredientPicker from '$lib/components/meals/IngredientPicker.svelte';
@@ -60,10 +59,10 @@
 	<Card>
 		<div class="grid grid-cols-2 gap-3">
 			{#each macroRows as row (row.label)}
-				<div class="rounded-[var(--radius-md)] bg-[var(--color-surface-alt)] px-3 py-2">
+				<div class="rounded-[var(--radius-md)] bg-[var(--color-surface-alt)] px-3 py-2.5">
 					<p class="text-xs text-[var(--color-text-muted)]">{row.label}</p>
-					<p class="text-base font-medium text-[var(--color-text)]">
-						{fmt(row.value)}<span class="ml-0.5 text-xs text-[var(--color-text-muted)]">{row.unit}</span>
+					<p class="text-lg font-semibold text-[var(--color-text)] tabular-nums">
+						{fmt(row.value)}<span class="ml-1 text-xs font-normal text-[var(--color-text-muted)]">{row.unit}</span>
 					</p>
 				</div>
 			{/each}
@@ -80,14 +79,17 @@
 		{#if meal.categories.length}
 			<div class="mt-3 flex flex-wrap gap-1.5 border-t border-[var(--color-border)] pt-3">
 				{#each meal.categories as c (c.id)}
-					<Chip>{c.name}</Chip>
+					<span
+						class="inline-flex h-7 items-center rounded-full bg-[var(--color-surface-alt)] px-2.5 text-xs font-medium text-[var(--color-text-muted)]"
+						>{c.name}</span
+					>
 				{/each}
 			</div>
 		{/if}
 	</Card>
 
 	<Card>
-		<h2 class="mb-2 text-sm font-medium text-[var(--color-text)]">Log to today</h2>
+		<h2 class="section-label mb-2">Log to today</h2>
 		<form
 			method="POST"
 			action="?/logToDay"
@@ -126,7 +128,7 @@
 	</Card>
 
 	<Card>
-		<h2 class="mb-2 text-sm font-medium text-[var(--color-text)]">Add to shopping list</h2>
+		<h2 class="section-label mb-2">Shopping list</h2>
 		<form
 			method="POST"
 			action="?/addToList"
@@ -144,10 +146,10 @@
 			}}
 		>
 			<input type="hidden" name="multiplier" value={addMultiplier} />
-			<NumberStepper label="Times to add (e.g. 2 = double the recipe)" bind:value={addMultiplier} step={0.5} min={0.5} />
-			<Button type="submit" variant="primary" size="lg" full class="w-full">
+			<NumberStepper label="Batches (2 = double the recipe)" bind:value={addMultiplier} step={0.5} min={0.5} />
+			<Button type="submit" variant="secondary" size="lg" full class="w-full">
 				<Icon name="cart" size={18} />
-				Add ingredients to shopping list
+				Add ingredients
 			</Button>
 		</form>
 		{#if added}
@@ -162,7 +164,7 @@
 	</Card>
 
 	<div>
-		<h2 class="mb-2 px-1 text-sm font-medium text-[var(--color-text-muted)]">Ingredients</h2>
+		<h2 class="section-label mb-2 px-1">Ingredients</h2>
 		{#if meal.ingredients.length === 0}
 			<EmptyState
 				icon="meals"

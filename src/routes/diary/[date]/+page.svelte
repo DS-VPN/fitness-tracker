@@ -71,7 +71,7 @@
 
 	<!-- Nutrition totals for the day -->
 	<Card>
-		<h2 class="mb-3 text-sm font-medium text-[var(--color-text-muted)]">Nutrition</h2>
+		<h2 class="section-label mb-3">Nutrition</h2>
 		{#if data.targets}
 			<div class="flex items-center gap-4">
 				<div class="flex flex-col items-center gap-1">
@@ -103,14 +103,14 @@
 	</Button>
 
 	<div>
-		<h2 class="mb-2 px-1 text-sm font-medium text-[var(--color-text-muted)]">Entries</h2>
+		<h2 class="section-label mb-2 px-1">Logged</h2>
 		{#if data.entries.length === 0}
 			<EmptyState
 				icon="meals"
 				title="Nothing logged this day"
 				description={isToday
 					? 'Log a meal or product to start tracking today.'
-					: 'Forgot to log something? Add it above — it counts toward this day.'}
+					: 'Forgot something? Add it above — it counts toward this day.'}
 			/>
 		{:else}
 			<Card padded={false} class="divide-y divide-[var(--color-border)]">
@@ -120,7 +120,7 @@
 							<p class="truncate text-sm text-[var(--color-text)]">
 								{entry.name}{#if entry.brand}<span class="text-[var(--color-text-muted)]"> · {entry.brand}</span>{/if}
 							</p>
-							<p class="text-xs text-[var(--color-text-muted)]">
+							<p class="text-xs text-[var(--color-text-muted)] tabular-nums">
 								×{fmtPortions(entry.portions)} · {Math.round(entry.calories)} kcal · {Math.round(entry.protein)}p
 								{Math.round(entry.carbs)}c {Math.round(entry.fat)}f
 							</p>

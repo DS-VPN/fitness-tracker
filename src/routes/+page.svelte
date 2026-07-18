@@ -19,6 +19,12 @@
 
 	const kcalRemaining = $derived(data.targets ? Math.round(data.targets.calories - data.summary.calories) : 0);
 
+	const dateLabel = new Date().toLocaleDateString(undefined, {
+		weekday: 'long',
+		month: 'long',
+		day: 'numeric'
+	});
+
 	function fmtWeight(n: number) {
 		return n;
 	}
@@ -42,7 +48,7 @@
 <div class="mx-auto max-w-md px-4 pt-[calc(1.25rem+env(safe-area-inset-top))] pb-4 space-y-5">
 	<div class="flex items-center justify-between">
 		<div>
-			<p class="text-sm text-[var(--color-text-muted)]">Welcome back, {data.username}</p>
+			<p class="text-sm text-[var(--color-text-muted)]">{dateLabel}</p>
 			<h1 class="text-2xl text-[var(--color-text)]">Today</h1>
 		</div>
 		<button
@@ -56,21 +62,21 @@
 	</div>
 
 	<HintCard id="home-intro" icon="home">
-		This is your day at a glance. Log food to fill your targets, start a workout, and
-		track goals — everything you add across the app shows up here.
+		Your day at a glance — log food, start a workout, and watch your targets fill in
+		as you go.
 	</HintCard>
 
 	<!-- Nutrition dashboard — the primary content -->
 	<Card>
 		<div class="flex items-center justify-between mb-3">
-			<h2 class="text-sm font-medium text-[var(--color-text-muted)]">Today's nutrition</h2>
+			<h2 class="section-label">Nutrition</h2>
 			<div class="flex items-center gap-0.5">
 				<a
 					href="/diary"
 					class="h-8 px-2.5 flex items-center gap-1 rounded-full text-xs font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface-alt)]"
 				>
 					<Icon name="chart" size={15} />
-					History
+					Diary
 				</a>
 				<button
 					type="button"
@@ -127,7 +133,7 @@
 
 	{#if data.entries.length > 0}
 		<div>
-			<h2 class="mb-2 px-1 text-sm font-medium text-[var(--color-text-muted)]">Today's meals</h2>
+			<h2 class="section-label mb-2 px-1">Logged today</h2>
 			<Card padded={false} class="divide-y divide-[var(--color-border)]">
 				{#each data.entries as entry (entry.id)}
 					<div class="flex items-center gap-2 px-4 py-2.5">
@@ -135,7 +141,7 @@
 							<p class="truncate text-sm text-[var(--color-text)]">
 								{entry.name}{#if entry.brand}<span class="text-[var(--color-text-muted)]"> · {entry.brand}</span>{/if}
 							</p>
-							<p class="text-xs text-[var(--color-text-muted)]">
+							<p class="text-xs text-[var(--color-text-muted)] tabular-nums">
 								×{fmtPortions(entry.portions)} · {Math.round(entry.calories)} kcal · {Math.round(entry.protein)}p
 								{Math.round(entry.carbs)}c {Math.round(entry.fat)}f
 							</p>
@@ -165,7 +171,7 @@
 	{/if}
 
 	<div>
-		<h2 class="mb-2 px-1 text-sm font-medium text-[var(--color-text-muted)]">Today's workout</h2>
+		<h2 class="section-label mb-2 px-1">Workout</h2>
 		{#if data.todayWorkout}
 			<Card href={`/workouts/${data.todayWorkout.id}`}>
 				<div class="flex items-center justify-between">
@@ -208,7 +214,7 @@
 
 	{#if data.goals.length > 0}
 		<div>
-			<h2 class="mb-2 px-1 text-sm font-medium text-[var(--color-text-muted)]">Goal progress</h2>
+			<h2 class="section-label mb-2 px-1">Goals</h2>
 			<div class="space-y-2">
 				{#each data.goals as goal (goal.exerciseId)}
 					<Card href={`/exercises/${goal.exerciseId}`}>
@@ -246,7 +252,7 @@
 
 	{#if data.exerciseProgress.length > 0}
 		<div>
-			<h2 class="mb-2 px-1 text-sm font-medium text-[var(--color-text-muted)]">Exercise progress</h2>
+			<h2 class="section-label mb-2 px-1">Progress</h2>
 			<div class="space-y-2">
 				{#each data.exerciseProgress as progress (progress.exercise.id)}
 					{@const t = trend(progress.history)}

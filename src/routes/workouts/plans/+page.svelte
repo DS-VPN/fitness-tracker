@@ -25,7 +25,7 @@
 		<EmptyState
 			icon="dumbbell"
 			title="No plans yet"
-			description="Create a plan to group exercises together, then start a workout from it whenever you want to follow it."
+			description="Group exercises into a routine, then start it with one tap on workout day."
 		>
 			<Button href="/workouts/plans/new" variant="primary">Create a plan</Button>
 		</EmptyState>

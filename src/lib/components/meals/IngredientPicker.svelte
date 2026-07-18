@@ -300,9 +300,7 @@
 				</button>
 			{/each}
 			{#if catalogResults.length > 0}
-				<p class="px-3 pt-2 pb-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-					From catalog
-				</p>
+				<p class="section-label px-3 pt-2 pb-1">From the catalog</p>
 				{#each catalogResults as c (c.id)}
 					<button
 						type="button"
@@ -323,7 +321,9 @@
 
 			{#if results.length === 0 && catalogResults.length === 0}
 				<p class="text-sm text-[var(--color-text-muted)] px-3 py-2">
-					{query.trim() ? 'No matches — create a new product below.' : 'Type to search your products, meals, and the Norwegian catalog.'}
+					{query.trim()
+						? 'No matches — create it as a new product below.'
+						: 'Search your products, your meals, and the Norwegian food catalog.'}
 				</p>
 			{/if}
 		</div>

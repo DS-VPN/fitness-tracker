@@ -28,7 +28,7 @@
 				aria-pressed={item.checked}
 				class={`h-11 w-11 shrink-0 flex items-center justify-center rounded-[var(--radius-md)] border transition-colors ${
 					item.checked
-						? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-white'
+						? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-[var(--color-on-accent)]'
 						: 'border-[var(--color-border)] text-transparent'
 				}`}
 			>
@@ -69,7 +69,7 @@
 				onclick={() => (expanded = !expanded)}
 				class="h-9 w-9 shrink-0 flex items-center justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-alt)]"
 			>
-				<Icon name="chevron-right" size={16} class={expanded ? 'rotate-90' : ''} />
+				<Icon name="chevron-right" size={16} class={`transition-transform ${expanded ? 'rotate-90' : ''}`} />
 			</button>
 		{/if}
 

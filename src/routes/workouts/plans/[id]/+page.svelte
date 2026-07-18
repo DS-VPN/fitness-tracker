@@ -40,31 +40,17 @@
 <PageHeader title={data.plan.name} back="/workouts/plans" actions={headerActions} />
 
 <div class="mx-auto max-w-md px-4 space-y-4">
-	<Card>
-		<form
-			method="POST"
-			action="?/rename"
-			class="flex items-end gap-2"
-			use:enhance={() => {
-				nameError = '';
-				return async ({ result, update }) => {
-					if (result.type === 'failure') {
-						nameError = (result.data?.error as string) ?? 'Could not save';
-					}
-					await update({ reset: false });
-				};
-			}}
-		>
-			<TextField label="Name" name="name" bind:value={nameValue} required class="flex-1" />
-			<Button type="submit" variant="secondary">Save</Button>
+	{#if data.exercises.length > 0}
+		<form method="POST" action="?/startWorkout" use:enhance>
+			<Button type="submit" variant="primary" size="lg" full class="w-full">
+				<Icon name="dumbbell" size={20} />
+				Start this workout
+			</Button>
 		</form>
-		{#if nameError}
-			<p class="mt-2 text-sm text-[var(--color-danger)]">{nameError}</p>
-		{/if}
-	</Card>
+	{/if}
 
 	<div>
-		<h2 class="mb-2 px-1 text-sm font-medium text-[var(--color-text-muted)]">Exercises</h2>
+		<h2 class="section-label mb-2 px-1">Exercises</h2>
 		{#if data.exercises.length === 0}
 			<EmptyState icon="dumbbell" title="No exercises yet" description="Add exercises to build this plan." />
 		{:else}
@@ -82,14 +68,31 @@
 		</Button>
 	</div>
 
-	{#if data.exercises.length > 0}
-		<form method="POST" action="?/startWorkout" use:enhance>
-			<Button type="submit" variant="primary" size="lg" full class="w-full">
-				<Icon name="dumbbell" size={20} />
-				Start workout from this plan
-			</Button>
-		</form>
-	{/if}
+	<div>
+		<h2 class="section-label mb-2 px-1">Plan details</h2>
+		<Card>
+			<form
+				method="POST"
+				action="?/rename"
+				class="flex items-end gap-2"
+				use:enhance={() => {
+					nameError = '';
+					return async ({ result, update }) => {
+						if (result.type === 'failure') {
+							nameError = (result.data?.error as string) ?? 'Could not save';
+						}
+						await update({ reset: false });
+					};
+				}}
+			>
+				<TextField label="Name" name="name" bind:value={nameValue} required class="flex-1" />
+				<Button type="submit" variant="secondary">Save</Button>
+			</form>
+			{#if nameError}
+				<p class="mt-2 text-sm text-[var(--color-danger)]">{nameError}</p>
+			{/if}
+		</Card>
+	</div>
 
 	{#if form?.error}
 		<p class="text-sm text-[var(--color-danger)]">{form.error}</p>

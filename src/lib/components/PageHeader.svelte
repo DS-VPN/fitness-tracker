@@ -21,7 +21,7 @@
 			<Icon name="chevron-left" size={22} />
 		</a>
 	{/if}
-	<h1 class="flex-1 text-xl truncate text-[var(--color-text)]">{title}</h1>
+	<h1 class="flex-1 text-[1.375rem] leading-7 truncate text-[var(--color-text)]">{title}</h1>
 	{#if actions}
 		<div class="flex items-center gap-1.5">
 			{@render actions()}

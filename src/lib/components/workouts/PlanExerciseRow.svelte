@@ -52,7 +52,7 @@
 				<p class="text-xs text-[var(--color-text-muted)]">{subtitle}</p>
 			{/if}
 			{#if exercise.notes}
-				<p class="text-xs text-[var(--color-text-muted)] italic mt-0.5">"{exercise.notes}"</p>
+				<p class="text-xs text-[var(--color-text-muted)] mt-0.5">{exercise.notes}</p>
 			{/if}
 		</div>
 		<div class="flex items-center gap-1 shrink-0">

@@ -77,7 +77,7 @@
 		<EmptyState
 			icon="cart"
 			title="No products yet"
-			description="Search to add from the Norwegian catalog, or add your own to build meals from ingredients."
+			description="Products are the ingredients your meals are built from. Search the Norwegian catalog above, or add your own."
 		>
 			<Button href="/shopping-list/products/new" variant="primary">Add a product</Button>
 		</EmptyState>
@@ -90,9 +90,7 @@
 
 	{#if data.catalogMatches.length > 0}
 		<section class="mt-6">
-			<h2 class="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-				From catalog
-			</h2>
+			<h2 class="section-label mb-2 px-1">From the catalog</h2>
 			<div class="space-y-2">
 				{#each data.catalogMatches as c (c.id)}
 					<Card class="flex items-center gap-2">

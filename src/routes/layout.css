@@ -18,15 +18,17 @@
 	--color-accent: #c4602c;
 	--color-accent-hover: #a94e22;
 	--color-accent-soft: #f3ded0;
+	--color-on-accent: #ffffff;
 	--color-danger: #b3432d;
 	--color-danger-soft: #f4dfd8;
 	--color-success: #4b7a51;
 	--color-success-soft: #e1ebe0;
+	--color-scrim: rgba(43, 36, 29, 0.4);
 
 	/* Radius */
 	--radius-sm: 6px;
-	--radius-md: 10px;
-	--radius-lg: 16px;
+	--radius-md: 12px;
+	--radius-lg: 18px;
 
 	/* Shadow */
 	--shadow-soft: 0 1px 2px rgba(43, 36, 29, 0.04), 0 4px 12px rgba(43, 36, 29, 0.06);
@@ -49,10 +51,12 @@
 		--color-accent: #e07a44;
 		--color-accent-hover: #ee9463;
 		--color-accent-soft: #4a3020;
+		--color-on-accent: #26160c;
 		--color-danger: #e0725a;
 		--color-danger-soft: #4a2a22;
 		--color-success: #7fb187;
 		--color-success-soft: #263626;
+		--color-scrim: rgba(0, 0, 0, 0.55);
 
 		color-scheme: dark;
 	}
@@ -68,10 +72,12 @@
 	--color-accent: #e07a44;
 	--color-accent-hover: #ee9463;
 	--color-accent-soft: #4a3020;
+	--color-on-accent: #26160c;
 	--color-danger: #e0725a;
 	--color-danger-soft: #4a2a22;
 	--color-success: #7fb187;
 	--color-success-soft: #263626;
+	--color-scrim: rgba(0, 0, 0, 0.55);
 
 	color-scheme: dark;
 }
@@ -89,54 +95,85 @@
 	--color-accent: var(--color-accent);
 	--color-accent-hover: var(--color-accent-hover);
 	--color-accent-soft: var(--color-accent-soft);
+	--color-on-accent: var(--color-on-accent);
 	--color-danger: var(--color-danger);
 	--color-danger-soft: var(--color-danger-soft);
 	--color-success: var(--color-success);
 	--color-success-soft: var(--color-success-soft);
+	--color-scrim: var(--color-scrim);
 
 	--radius-sm: var(--radius-sm);
 	--radius-md: var(--radius-md);
 	--radius-lg: var(--radius-lg);
 }
 
-html,
-body {
-	height: 100%;
+@layer base {
+	html,
+	body {
+		height: 100%;
+	}
+
+	body {
+		background-color: var(--color-bg);
+		color: var(--color-text);
+		font-family: var(--font-sans);
+		-webkit-font-smoothing: antialiased;
+		overscroll-behavior-y: none;
+	}
+
+	h1,
+	h2,
+	h3 {
+		font-family: var(--font-serif);
+		font-weight: 600;
+		letter-spacing: -0.01em;
+		text-wrap: balance;
+	}
+
+	::selection {
+		background: var(--color-accent-soft);
+	}
+
+	input,
+	select,
+	textarea,
+	button {
+		font-family: inherit;
+	}
+
+	/* Hide number input spinners so custom stepper controls own the UI */
+	input[type='number']::-webkit-outer-spin-button,
+	input[type='number']::-webkit-inner-spin-button {
+		-webkit-appearance: none;
+		margin: 0;
+	}
+	input[type='number'] {
+		appearance: textfield;
+	}
 }
 
-body {
-	background-color: var(--color-bg);
-	color: var(--color-text);
-	font-family: var(--font-sans);
-	-webkit-font-smoothing: antialiased;
-	overscroll-behavior-y: none;
-}
+@layer components {
+	/* The one style for section and card captions — a quiet sans label that lets
+	   content carry the weight. Used on h2/p regardless of element. */
+	.section-label {
+		font-family: var(--font-sans);
+		font-size: 0.8125rem;
+		line-height: 1.25rem;
+		font-weight: 600;
+		letter-spacing: 0.01em;
+		color: var(--color-text-muted);
+	}
 
-h1,
-h2,
-h3 {
-	font-family: var(--font-serif);
-	font-weight: 600;
-	letter-spacing: -0.01em;
-}
-
-::selection {
-	background: var(--color-accent-soft);
-}
-
-input,
-select,
-textarea,
-button {
-	font-family: inherit;
-}
-
-/* Hide number input spinners so custom stepper controls own the UI */
-input[type='number']::-webkit-outer-spin-button,
-input[type='number']::-webkit-inner-spin-button {
-	-webkit-appearance: none;
-	margin: 0;
-}
-input[type='number'] {
-	appearance: textfield;
+	/* Tiny uppercase pill marking what kind of thing a row is (Meal / Product). */
+	.type-pill {
+		flex-shrink: 0;
+		border-radius: 9999px;
+		background-color: var(--color-surface-alt);
+		padding: 0.125rem 0.4375rem;
+		font-size: 0.625rem;
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--color-text-muted);
+	}
 }

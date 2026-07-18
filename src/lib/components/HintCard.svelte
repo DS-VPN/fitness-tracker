@@ -45,7 +45,7 @@
 
 {#if show}
 	<div
-		class="flex items-start gap-3 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-accent-soft)] px-3.5 py-3"
+		class="flex items-start gap-3 rounded-[var(--radius-lg)] bg-[var(--color-accent-soft)] px-4 py-3.5"
 	>
 		<div class="mt-0.5 shrink-0 text-[var(--color-accent)]">
 			<Icon name={icon} size={18} />

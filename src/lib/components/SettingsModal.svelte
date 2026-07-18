@@ -27,7 +27,7 @@
 <Modal bind:open title="Settings">
 	<div class="space-y-5">
 		<div>
-			<p class="mb-2 text-sm font-medium text-[var(--color-text)]">Appearance</p>
+			<p class="section-label mb-2">Appearance</p>
 			<div class="flex gap-1 rounded-[var(--radius-md)] bg-[var(--color-surface-alt)] p-1">
 				{#each options as option (option.value)}
 					<button
