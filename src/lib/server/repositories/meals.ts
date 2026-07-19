@@ -235,13 +235,26 @@ function normalizeRecipePortions(portions: number | undefined): number {
 	return Math.round(portions * 100) / 100;
 }
 
-export async function createMeal(userId: number, name: string, categoryIds: number[], portions?: number) {
+export async function createMeal(
+	userId: number,
+	name: string,
+	categoryIds: number[],
+	portions?: number,
+	notes?: string
+) {
 	const trimmed = name.trim();
 	if (!trimmed) throw new Error('Name is required');
 	const now = new Date();
 	const [row] = await db
 		.insert(meals)
-		.values({ name: trimmed, userId, portions: normalizeRecipePortions(portions), createdAt: now, updatedAt: now })
+		.values({
+			name: trimmed,
+			userId,
+			portions: normalizeRecipePortions(portions),
+			notes: notes?.trim() || null,
+			createdAt: now,
+			updatedAt: now
+		})
 		.returning();
 
 	const validCategoryIds = await ownedCategoryIds(userId, categoryIds);
@@ -252,14 +265,21 @@ export async function createMeal(userId: number, name: string, categoryIds: numb
 	return row;
 }
 
-export async function updateMealDetails(userId: number, id: number, name: string, categoryIds: number[], portions?: number) {
+export async function updateMealDetails(
+	userId: number,
+	id: number,
+	name: string,
+	categoryIds: number[],
+	portions?: number,
+	notes?: string
+) {
 	const trimmed = name.trim();
 	if (!trimmed) throw new Error('Name is required');
 	await assertMealOwned(userId, id);
 
 	await db
 		.update(meals)
-		.set({ name: trimmed, portions: normalizeRecipePortions(portions), updatedAt: new Date() })
+		.set({ name: trimmed, portions: normalizeRecipePortions(portions), notes: notes?.trim() || null, updatedAt: new Date() })
 		.where(eq(meals.id, id));
 
 	await db.delete(mealCategories).where(eq(mealCategories.mealId, id));

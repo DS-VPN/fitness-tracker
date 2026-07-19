@@ -21,6 +21,7 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const name = String(form.get('name') ?? '').trim();
 		const portions = parseDecimal(String(form.get('portions') ?? '1'));
+		const notes = String(form.get('notes') ?? '');
 		const categoryIds = form
 			.getAll('categoryIds')
 			.map((v) => Number(v))
@@ -28,7 +29,7 @@ export const actions: Actions = {
 
 		if (!name) return fail(400, { error: 'Name is required' });
 
-		await updateMealDetails(locals.user!.id, id, name, categoryIds, portions);
+		await updateMealDetails(locals.user!.id, id, name, categoryIds, portions, notes);
 		throw redirect(303, `/meals/${id}`);
 	}
 };

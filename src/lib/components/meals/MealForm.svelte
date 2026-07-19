@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import TextField from '$lib/components/TextField.svelte';
+	import TextareaField from '$lib/components/TextareaField.svelte';
 	import NumberField from '$lib/components/NumberField.svelte';
 	import Chip from '$lib/components/Chip.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -9,6 +10,7 @@
 		name?: string;
 		portions?: number;
 		categoryIds?: number[];
+		notes?: string | null;
 	};
 
 	let {
@@ -29,6 +31,7 @@
 	let name = $state(initial?.name ?? '');
 	let portions = $state<number | null>(initial?.portions ?? 1);
 	let selectedCategoryIds = $state<number[]>(initial?.categoryIds ?? []);
+	let notes = $state(initial?.notes ?? '');
 
 	let submitting = $state(false);
 
@@ -78,6 +81,8 @@
 			{/each}
 		</div>
 	{/if}
+
+	<TextareaField label="Notes" name="notes" bind:value={notes} placeholder="e.g. swap in whole wheat pasta, halve the chili" />
 
 	{#if formError}
 		<p class="text-sm text-[var(--color-danger)]">{formError}</p>

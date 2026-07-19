@@ -90,6 +90,13 @@
 		{/if}
 	</Card>
 
+	{#if meal.notes}
+		<Card>
+			<h2 class="section-label mb-2">Notes</h2>
+			<p class="whitespace-pre-wrap text-sm text-[var(--color-text)]">{meal.notes}</p>
+		</Card>
+	{/if}
+
 	<Card>
 		<h2 class="section-label mb-2">Log to today</h2>
 		<form

@@ -32,6 +32,7 @@ export const meals = sqliteTable('meals', {
 	name: text('name').notNull(),
 	/** How many portions/servings this recipe is designed to make — per-portion macros = total / portions. */
 	portions: real('portions').notNull().default(1),
+	notes: text('notes'),
 	brand: text('brand'),
 	servingSize: text('serving_size'),
 	calories: real('calories').notNull().default(0),

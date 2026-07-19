@@ -17,7 +17,8 @@
 			initial={{
 				name: data.meal.name,
 				portions: data.meal.portions,
-				categoryIds: data.meal.categories.map((c) => c.id)
+				categoryIds: data.meal.categories.map((c) => c.id),
+				notes: data.meal.notes
 			}}
 			submitLabel="Save changes"
 			formError={form?.error}

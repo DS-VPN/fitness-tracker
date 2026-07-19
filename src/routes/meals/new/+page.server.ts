@@ -80,6 +80,7 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const name = String(form.get('name') ?? '').trim();
 		const portions = parseDecimal(String(form.get('portions') ?? '1'));
+		const notes = String(form.get('notes') ?? '');
 		const categoryIds = form
 			.getAll('categoryIds')
 			.map((v) => Number(v))
@@ -87,7 +88,7 @@ export const actions: Actions = {
 
 		if (!name) return fail(400, { error: 'Name is required' });
 
-		const meal = await createMeal(locals.user!.id, name, categoryIds, portions);
+		const meal = await createMeal(locals.user!.id, name, categoryIds, portions, notes);
 		throw redirect(303, `/meals/${meal.id}`);
 	},
 
