@@ -33,6 +33,8 @@ export const meals = sqliteTable('meals', {
 	/** How many portions/servings this recipe is designed to make — per-portion macros = total / portions. */
 	portions: real('portions').notNull().default(1),
 	notes: text('notes'),
+	/** Filename of an optional user-uploaded photo, stored on disk (see $lib/server/storage/mealPhotos) — not a URL. */
+	photoFilename: text('photo_filename'),
 	brand: text('brand'),
 	servingSize: text('serving_size'),
 	calories: real('calories').notNull().default(0),

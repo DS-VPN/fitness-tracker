@@ -188,17 +188,28 @@
 					<div class="space-y-2">
 						{#each group.meals as meal (meal.id)}
 							<Card href={mealHref(meal.id)}>
-								<span class="block truncate font-medium text-[var(--color-text)]">{meal.name}</span>
-								{#if meal.brand}
-									<p class="truncate text-xs text-[var(--color-text-muted)]">{meal.brand}</p>
-								{/if}
-								<MacroBadge
-									calories={meal.totalMacros.calories}
-									protein={meal.totalMacros.protein}
-									carbs={meal.totalMacros.carbs}
-									fat={meal.totalMacros.fat}
-									class="mt-1"
-								/>
+								<div class="flex items-center gap-3">
+									{#if meal.photoFilename}
+										<img
+											src={`/meals/${meal.id}/photo?v=${meal.updatedAt.getTime()}`}
+											alt=""
+											class="h-11 w-11 shrink-0 rounded-[var(--radius-md)] object-cover"
+										/>
+									{/if}
+									<div class="min-w-0 flex-1">
+										<span class="block truncate font-medium text-[var(--color-text)]">{meal.name}</span>
+										{#if meal.brand}
+											<p class="truncate text-xs text-[var(--color-text-muted)]">{meal.brand}</p>
+										{/if}
+										<MacroBadge
+											calories={meal.totalMacros.calories}
+											protein={meal.totalMacros.protein}
+											carbs={meal.totalMacros.carbs}
+											fat={meal.totalMacros.fat}
+											class="mt-1"
+										/>
+									</div>
+								</div>
 							</Card>
 						{/each}
 					</div>
