@@ -19,10 +19,60 @@ export type ParsedLine = {
 	text: string;
 };
 
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
+
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_BYTES = 3_000_000;
+const MAX_REDIRECTS = 4;
 
-function assertSafeUrl(raw: string): URL {
+/* ---------- SSRF guard ----------
+ * Recipe import fetches a user-supplied URL from the server, so it must never be usable to reach
+ * the host's own loopback, the LAN, or the cloud-metadata endpoint (169.254.169.254). We classify
+ * addresses numerically (obfuscated literals like 0x7f000001 or ::ffff:127.0.0.1 can't slip past a
+ * string match), and — crucially — resolve the hostname and check the *resolved* IPs before
+ * connecting, since a public name can point straight at an internal address. Every redirect hop is
+ * re-validated too. Residual gap: DNS rebinding between our lookup and fetch's own lookup (TOCTOU);
+ * closing it fully needs connection-level IP pinning, which is out of scope for a trusted-network,
+ * single-tenant deployment. */
+
+function isBlockedIpv4(ip: string): boolean {
+	const p = ip.split('.').map(Number);
+	if (p.length !== 4 || p.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return true;
+	const [a, b] = p;
+	if (a === 0) return true; //                 0.0.0.0/8   (incl. 0.0.0.0)
+	if (a === 10) return true; //                10.0.0.0/8  private
+	if (a === 127) return true; //               127.0.0.0/8 loopback
+	if (a === 169 && b === 254) return true; //  169.254.0.0/16 link-local (cloud metadata)
+	if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12 private
+	if (a === 192 && b === 168) return true; //  192.168.0.0/16 private
+	return false;
+}
+
+function isBlockedIpv6(ip: string): boolean {
+	const v = ip.toLowerCase();
+	// Everything in ::/x (leading "::") is reserved — loopback (::1), unspecified (::), and the
+	// IPv4-mapped/compat forms the URL parser may compress into hex. Block the range outright, but
+	// when an IPv4 tail is visible (::ffff:127.0.0.1), judge it by that so mapped *public* IPs pass.
+	if (v.startsWith('::')) {
+		const tail = v.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+		return tail ? isBlockedIpv4(tail[1]) : true;
+	}
+	const head = parseInt(v.split(':')[0] || '0', 16);
+	if ((head & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
+	if ((head & 0xfe00) === 0xfc00) return true; // fc00::/7  unique-local
+	return false;
+}
+
+/** True for any address the server must refuse to connect to on a user's behalf. */
+function isBlockedIp(ip: string): boolean {
+	const family = isIP(ip);
+	if (family === 4) return isBlockedIpv4(ip);
+	if (family === 6) return isBlockedIpv6(ip);
+	return true; // unrecognisable — refuse rather than guess
+}
+
+function parseUrl(raw: string): URL {
 	let url: URL;
 	try {
 		url = new URL(raw.trim());
@@ -32,17 +82,29 @@ function assertSafeUrl(raw: string): URL {
 	if (url.protocol !== 'http:' && url.protocol !== 'https:') {
 		throw new Error('Only http(s) links can be imported');
 	}
-	// Cheap SSRF guard for a self-hosted app: refuse obvious local/private targets.
-	const host = url.hostname.toLowerCase();
-	if (
-		host === 'localhost' ||
-		host === '::1' ||
-		host.endsWith('.local') ||
-		/^(127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host)
-	) {
+	return url;
+}
+
+/** Resolves the URL's host and throws unless it maps only to public addresses. */
+async function assertPublicHost(url: URL): Promise<void> {
+	const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase(); // strip IPv6 brackets
+
+	if (isIP(host)) {
+		if (isBlockedIp(host)) throw new Error("That address can't be fetched");
+		return;
+	}
+	if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) {
 		throw new Error("That address can't be fetched");
 	}
-	return url;
+	let addrs;
+	try {
+		addrs = await lookup(host, { all: true });
+	} catch {
+		throw new Error('Could not resolve that link');
+	}
+	if (addrs.length === 0 || addrs.some((a) => isBlockedIp(a.address))) {
+		throw new Error("That address can't be fetched");
+	}
 }
 
 async function readCapped(res: Response, maxBytes: number): Promise<string> {
@@ -65,19 +127,30 @@ async function readCapped(res: Response, maxBytes: number): Promise<string> {
 }
 
 export async function fetchRecipe(rawUrl: string): Promise<ParsedRecipe> {
-	const url = assertSafeUrl(rawUrl);
+	let url = parseUrl(rawUrl);
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 	let html: string;
 	try {
-		const res = await fetch(url, {
-			signal: controller.signal,
-			redirect: 'follow',
-			headers: {
-				accept: 'text/html,application/xhtml+xml',
-				'user-agent': 'Mozilla/5.0 (compatible; fitness-tracker-recipe-import)'
-			}
-		});
+		// Follow redirects by hand so every hop is re-validated — otherwise a public page could 302
+		// the server into loopback/LAN/metadata, which `redirect: 'follow'` would chase blindly.
+		let res: Response;
+		for (let hop = 0; ; hop++) {
+			await assertPublicHost(url);
+			res = await fetch(url, {
+				signal: controller.signal,
+				redirect: 'manual',
+				headers: {
+					accept: 'text/html,application/xhtml+xml',
+					'user-agent': 'Mozilla/5.0 (compatible; fitness-tracker-recipe-import)'
+				}
+			});
+			const location = res.status >= 300 && res.status < 400 ? res.headers.get('location') : null;
+			if (!location) break;
+			if (hop >= MAX_REDIRECTS) throw new Error('That link redirects too many times');
+			void res.body?.cancel();
+			url = parseUrl(new URL(location, url).href);
+		}
 		if (!res.ok) throw new Error(`The site answered with ${res.status}`);
 		html = await readCapped(res, MAX_BYTES);
 	} catch (e) {
