@@ -82,7 +82,7 @@ or, without cloning the repo onto the host first (works once this repo is public
 with a token embedded in the URL — see below):
 
 ```sh
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/DS-VPN/fitness-tracker/main/proxmox/fitness-tracker.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/DS-X256/fitness-tracker/main/proxmox/fitness-tracker.sh)"
 ```
 
 Choose **Default Install** to auto-pick a free container ID, storage, and the newest
