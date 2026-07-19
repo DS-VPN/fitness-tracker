@@ -8,6 +8,9 @@ services:
       DATABASE_URL: /data/fitness.db
       ORIGIN: ${ORIGIN}
       PORT: 3000
+      # adapter-node rejects request bodies over 512KB by default, which would block meal photo
+      # uploads (app-level limit is 8MB) — 10M leaves headroom for multipart encoding overhead.
+      BODY_SIZE_LIMIT: 10M
     volumes:
       - fitness-data:/data
 

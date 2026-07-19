@@ -27,7 +27,13 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	try {
 		const data = await readFile(mealPhotoPath(row.photoFilename));
 		return new Response(data, {
-			headers: { 'Content-Type': contentType, 'Cache-Control': 'private, max-age=31536000, immutable' }
+			headers: {
+				'Content-Type': contentType,
+				// Belt-and-braces against a disguised non-image slipping through: never let the
+				// browser second-guess the declared type into something executable.
+				'X-Content-Type-Options': 'nosniff',
+				'Cache-Control': 'private, max-age=31536000, immutable'
+			}
 		});
 	} catch {
 		throw error(404, 'No photo');
