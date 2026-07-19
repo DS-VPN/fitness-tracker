@@ -259,7 +259,7 @@
 					<SelectField label="Unit" name="unit" bind:value={newUnit} options={UNIT_OPTIONS} />
 				</div>
 				<div class="grid grid-cols-2 gap-3">
-					<NumberField label="Calories" name="calories" bind:value={newCalories} min={0} suffix="kcal" required />
+					<NumberField label="Calories" name="calories" bind:value={newCalories} min={0} step={0.1} suffix="kcal" required />
 					<NumberField label="Protein" name="protein" bind:value={newProtein} min={0} step={0.1} suffix="g" required />
 					<NumberField label="Carbs" name="carbs" bind:value={newCarbs} min={0} step={0.1} suffix="g" required />
 					<NumberField label="Fat" name="fat" bind:value={newFat} min={0} step={0.1} suffix="g" required />
