@@ -44,9 +44,9 @@
 	{/if}
 	<div class="relative">
 		{#if decimalText}
+			<input type="hidden" {name} value={value ?? ''} />
 			<input
 				{id}
-				{name}
 				type="text"
 				inputmode="decimal"
 				{placeholder}

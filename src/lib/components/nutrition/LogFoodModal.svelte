@@ -237,11 +237,11 @@
 		>
 			<div class="space-y-3">
 				<TextField label="Name" name="name" bind:value={qaName} placeholder="e.g. Dinner out" />
-				<NumberField label="Calories" name="calories" bind:value={qaCalories} min={0} step={0.1} suffix="kcal" required />
+				<NumberField label="Calories" name="calories" bind:value={qaCalories} decimalText suffix="kcal" required />
 				<div class="grid grid-cols-3 gap-3">
-					<NumberField label="Protein" name="protein" bind:value={qaProtein} min={0} step={0.1} suffix="g" />
-					<NumberField label="Carbs" name="carbs" bind:value={qaCarbs} min={0} step={0.1} suffix="g" />
-					<NumberField label="Fat" name="fat" bind:value={qaFat} min={0} step={0.1} suffix="g" />
+					<NumberField label="Protein" name="protein" bind:value={qaProtein} decimalText suffix="g" />
+					<NumberField label="Carbs" name="carbs" bind:value={qaCarbs} decimalText suffix="g" />
+					<NumberField label="Fat" name="fat" bind:value={qaFat} decimalText suffix="g" />
 				</div>
 			</div>
 			<div class="mt-4 flex gap-2">

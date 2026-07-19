@@ -113,10 +113,10 @@
 	<div>
 		<p class="mb-1.5 text-sm font-medium text-[var(--color-text)]">{nutritionLabel}</p>
 		<div class="grid grid-cols-2 gap-3">
-			<NumberField label="Calories" name="calories" bind:value={calories} min={0} step={0.1} suffix="kcal" required />
-			<NumberField label="Protein" name="protein" bind:value={protein} min={0} step={0.1} suffix="g" required />
-			<NumberField label="Carbs" name="carbs" bind:value={carbs} min={0} step={0.1} suffix="g" required />
-			<NumberField label="Fat" name="fat" bind:value={fat} min={0} step={0.1} suffix="g" required />
+			<NumberField label="Calories" name="calories" bind:value={calories} decimalText suffix="kcal" required />
+			<NumberField label="Protein" name="protein" bind:value={protein} decimalText suffix="g" required />
+			<NumberField label="Carbs" name="carbs" bind:value={carbs} decimalText suffix="g" required />
+			<NumberField label="Fat" name="fat" bind:value={fat} decimalText suffix="g" required />
 		</div>
 	</div>
 
