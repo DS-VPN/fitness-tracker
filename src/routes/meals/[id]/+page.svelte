@@ -9,6 +9,8 @@
 	import IngredientPicker from '$lib/components/meals/IngredientPicker.svelte';
 	import ShareMealsModal from '$lib/components/meals/ShareMealsModal.svelte';
 	import NumberStepper from '$lib/components/NumberStepper.svelte';
+	import PortionPicker from '$lib/components/PortionPicker.svelte';
+	import { formatPortionsPhrase } from '$lib/utils/formatPortions';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -93,7 +95,6 @@
 		<form
 			method="POST"
 			action="?/logToDay"
-			class="flex items-end gap-2"
 			use:enhance={() => {
 				logError = '';
 				return async ({ result, update }) => {
@@ -108,17 +109,24 @@
 				};
 			}}
 		>
-			<input type="hidden" name="portions" value={logPortions} />
-			<NumberStepper label="Portions eaten" bind:value={logPortions} step={0.5} min={0} class="flex-1" />
-			<Button type="submit" variant="primary" class="h-12">
-				<Icon name="check" size={18} />
-				Log
-			</Button>
+			<PortionPicker name="portions" label="Portions eaten" bind:value={logPortions} />
+			<div class="mt-3 flex items-center justify-between gap-2">
+				<p class="text-xs text-[var(--color-text-muted)]">
+					{#if logPortions > 0}
+						≈ {Math.round(meal.perPortionMacros.calories * logPortions)} kcal for {formatPortionsPhrase(
+							logPortions,
+							'portion'
+						)}
+					{:else}
+						Pick an amount to see calories.
+					{/if}
+				</p>
+				<Button type="submit" variant="primary" class="h-12" disabled={logPortions <= 0}>
+					<Icon name="check" size={18} />
+					Log
+				</Button>
+			</div>
 		</form>
-		<p class="mt-1.5 text-xs text-[var(--color-text-muted)]">
-			≈ {Math.round(meal.perPortionMacros.calories * logPortions)} kcal for {logPortions}
-			{logPortions === 1 ? 'portion' : 'portions'}
-		</p>
 		{#if logged}
 			<p class="mt-1 text-sm text-[var(--color-success)]">Logged to today</p>
 		{/if}

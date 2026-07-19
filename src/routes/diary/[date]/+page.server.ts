@@ -12,6 +12,7 @@ import {
 } from '$lib/server/repositories/nutritionLog';
 import { todayIso } from '$lib/utils/todayIso';
 import { isValidIsoDate } from '$lib/utils/isoDate';
+import { parseDecimal } from '$lib/utils/parseDecimal';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -52,8 +53,9 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const kind = String(form.get('kind') ?? '');
 		const refId = Number(form.get('refId'));
-		const portions = Number(form.get('portions'));
+		const portions = parseDecimal(String(form.get('portions') ?? ''));
 		if (!Number.isFinite(refId)) return fail(400, { error: 'Invalid selection' });
+		if (portions <= 0) return fail(400, { error: 'Portions must be above 0' });
 		try {
 			if (kind === 'meal') {
 				await logMealToDay(locals.user!.id, refId, portions, date);

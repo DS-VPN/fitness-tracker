@@ -9,6 +9,7 @@
 	import MacroBar from '$lib/components/nutrition/MacroBar.svelte';
 	import LogFoodModal from '$lib/components/nutrition/LogFoodModal.svelte';
 	import { shiftIsoDate } from '$lib/utils/isoDate';
+	import { formatPortions } from '$lib/utils/formatPortions';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -33,9 +34,6 @@
 		return dt.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
 	}
 
-	function fmtPortions(n: number) {
-		return Number.isInteger(n) ? n : n;
-	}
 </script>
 
 <svelte:head><title>{dayLabel(data.date)} · Food diary</title></svelte:head>
@@ -121,7 +119,7 @@
 								{entry.name}{#if entry.brand}<span class="text-[var(--color-text-muted)]"> · {entry.brand}</span>{/if}
 							</p>
 							<p class="text-xs text-[var(--color-text-muted)] tabular-nums">
-								×{fmtPortions(entry.portions)} · {Math.round(entry.calories)} kcal · {Math.round(entry.protein)}p
+								×{formatPortions(entry.portions)} · {Math.round(entry.calories)} kcal · {Math.round(entry.protein)}p
 								{Math.round(entry.carbs)}c {Math.round(entry.fat)}f
 							</p>
 						{/snippet}

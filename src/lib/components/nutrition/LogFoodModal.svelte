@@ -4,10 +4,11 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import TextField from '$lib/components/TextField.svelte';
 	import NumberField from '$lib/components/NumberField.svelte';
-	import NumberStepper from '$lib/components/NumberStepper.svelte';
+	import PortionPicker from '$lib/components/PortionPicker.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import BarcodeScanner from '$lib/components/BarcodeScanner.svelte';
+	import { formatPortionsPhrase } from '$lib/utils/formatPortions';
 
 	type MealOption = { id: number; name: string; portions: number; totalMacros: { calories: number } };
 	type ProductOption = { id: number; name: string; brand: string | null; calories: number; amount: number; unit: string };
@@ -98,11 +99,6 @@
 		return meal.totalMacros.calories / recipePortions;
 	}
 
-	function unitWord(kind: 'meal' | 'product', n: number) {
-		const base = kind === 'meal' ? 'portion' : 'serving';
-		return n === 1 ? base : `${base}s`;
-	}
-
 	function pickMeal(meal: MealOption) {
 		selected = {
 			kind: 'meal',
@@ -188,8 +184,14 @@
 			Logging <span class="font-medium">{selected.name}</span>
 		</p>
 		<p class="mb-3 text-xs text-[var(--color-text-muted)]">
-			≈ {Math.round(selected.kcalPerPortion * portions)} kcal for {portions}
-			{unitWord(selected.kind, portions)}
+			{#if portions > 0}
+				≈ {Math.round(selected.kcalPerPortion * portions)} kcal for {formatPortionsPhrase(
+					portions,
+					selected.kind === 'meal' ? 'portion' : 'serving'
+				)}
+			{:else}
+				Pick an amount to see calories.
+			{/if}
 		</p>
 		<form
 			method="POST"
@@ -208,11 +210,10 @@
 		>
 			<input type="hidden" name="kind" value={selected.kind} />
 			<input type="hidden" name="refId" value={selected.id} />
-			<input type="hidden" name="portions" value={portions} />
-			<NumberStepper label={selected.unitLabel} bind:value={portions} step={0.5} min={0} class="mb-3" />
+			<PortionPicker name="portions" label={selected.unitLabel} bind:value={portions} class="mb-3" />
 			<div class="flex gap-2">
 				<Button type="button" variant="ghost" onclick={() => (selected = null)}>Back</Button>
-				<Button type="submit" variant="primary" full class="flex-1">Log</Button>
+				<Button type="submit" variant="primary" full class="flex-1" disabled={portions <= 0}>Log</Button>
 			</div>
 		</form>
 	{:else if quickAdd}

@@ -61,6 +61,7 @@ export const actions: Actions = {
 		const id = Number(params.id);
 		const form = await request.formData();
 		const portions = parseDecimal(String(form.get('portions') ?? '1'));
+		if (portions <= 0) return fail(400, { error: 'Portions must be above 0' });
 		try {
 			await logMealToDay(locals.user!.id, id, portions, todayIso());
 		} catch (e) {
