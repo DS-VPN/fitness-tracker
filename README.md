@@ -34,6 +34,16 @@ Edit `.env` and set:
   `http://100.64.1.2:3000` (a Tailscale IP) or `http://homeserver.tailnet-name.ts.net:3000`.
   This is required — SvelteKit rejects form submissions whose origin doesn't match.
 - `PORT` — the host port to publish (defaults to `3000`; the container always listens on `3000` internally).
+- `PHOTO_ENCRYPTION_KEY` — a 32-byte key used to encrypt progress photos at rest. Generate one and
+  append it to `.env` (Docker Compose reads this file for `${...}` substitution, so a missing value
+  triggers a `variable is not set` warning and disables photo upload/viewing):
+
+  ```sh
+  echo "PHOTO_ENCRYPTION_KEY=$(openssl rand -hex 32)" >> .env
+  ```
+
+  Everything except progress photos works without it. **Back this key up together with your database**
+  — if you lose it, existing photos can't be decrypted. Keep the same key across upgrades.
 
 Then:
 
@@ -63,6 +73,10 @@ docker compose up -d --build
 ```
 
 Schema migrations run automatically on container start.
+
+> **Upgrading into the progress-photos release:** this version adds `PHOTO_ENCRYPTION_KEY`. If Compose
+> warns `variable is not set`, add a key to your existing `.env` once, then rebuild:
+> `echo "PHOTO_ENCRYPTION_KEY=$(openssl rand -hex 32)" >> .env && docker compose up -d --build`.
 
 ## Deploying to a Proxmox VE LXC
 
