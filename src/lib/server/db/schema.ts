@@ -8,6 +8,9 @@ export const users = sqliteTable('users', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	username: text('username').notNull(),
 	passwordHash: text('password_hash').notNull(),
+	/** Grants access to /admin (user/instance management). Bootstrapped by promoting the earliest account
+	 *  when none exists yet — see ensureAdminExists in hooks.server.ts. */
+	isAdmin: integer('is_admin', { mode: 'boolean' }).notNull().default(false),
 	createdAt: timestamp('created_at')
 }, (t) => [uniqueIndex('users_username_lower_unique').on(sql`lower(${t.username})`)]);
 

@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import Modal from './Modal.svelte';
 	import Icon from './Icon.svelte';
 	import { getTheme, setTheme, type Theme } from '$lib/utils/theme';
 
 	let { open = $bindable(false) }: { open?: boolean } = $props();
+
+	const isAdmin = $derived(page.data.user?.isAdmin ?? false);
 
 	let theme = $state<Theme>('system');
 
@@ -48,6 +51,17 @@
 				System follows your device's light or dark setting.
 			</p>
 		</div>
+
+		{#if isAdmin}
+			<a
+				href="/admin"
+				onclick={() => (open = false)}
+				class="flex items-center gap-2 border-t border-[var(--color-border)] pt-4 px-1 pb-1 text-sm font-medium text-[var(--color-text)] hover:text-[var(--color-accent)]"
+			>
+				<Icon name="sliders" size={18} />
+				Admin panel
+			</a>
+		{/if}
 
 		<form method="POST" action="/logout" class="border-t border-[var(--color-border)] pt-4">
 			<button
