@@ -6,7 +6,8 @@
 		{ href: '/', label: 'Home', icon: 'home' as const },
 		{ href: '/meals', label: 'Meals', icon: 'meals' as const },
 		{ href: '/shopping-list', label: 'Shopping', icon: 'cart' as const },
-		{ href: '/workouts', label: 'Workouts', icon: 'dumbbell' as const }
+		{ href: '/workouts', label: 'Workouts', icon: 'dumbbell' as const },
+		{ href: '/body', label: 'Body', icon: 'scale' as const }
 	];
 
 	function isActive(href: string) {

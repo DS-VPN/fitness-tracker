@@ -8,9 +8,11 @@ services:
       DATABASE_URL: /data/fitness.db
       ORIGIN: ${ORIGIN}
       PORT: 3000
-      # adapter-node rejects request bodies over 512KB by default, which would block meal photo
-      # uploads (app-level limit is 8MB) — 10M leaves headroom for multipart encoding overhead.
-      BODY_SIZE_LIMIT: 10M
+      # Encrypts progress photos at rest — see .env.example. Passed through from your .env; back it up.
+      PHOTO_ENCRYPTION_KEY: ${PHOTO_ENCRYPTION_KEY}
+      # adapter-node rejects request bodies over 512KB by default, which would block photo uploads
+      # (app-level limits are 8MB meal / 12MB progress) — 16M leaves headroom for multipart overhead.
+      BODY_SIZE_LIMIT: 16M
     volumes:
       - fitness-data:/data
 
