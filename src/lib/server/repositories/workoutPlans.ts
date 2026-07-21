@@ -61,7 +61,8 @@ export async function getPlan(userId: number, id: number) {
 			muscleGroup: exercises.muscleGroup,
 			targetSets: planExercises.targetSets,
 			restSeconds: planExercises.restSeconds,
-			notes: planExercises.notes
+			notes: planExercises.notes,
+			supersetGroup: planExercises.supersetGroup
 		})
 		.from(planExercises)
 		.innerJoin(exercises, eq(exercises.id, planExercises.exerciseId))
@@ -110,7 +111,7 @@ export async function updatePlanExerciseDetails(
 	userId: number,
 	planId: number,
 	planExerciseId: number,
-	details: { targetSets: number | null; restSeconds: number | null; notes: string | null }
+	details: { targetSets: number | null; restSeconds: number | null; notes: string | null; supersetGroup: number | null }
 ) {
 	await assertPlanOwned(userId, planId);
 	await db
@@ -118,7 +119,8 @@ export async function updatePlanExerciseDetails(
 		.set({
 			targetSets: details.targetSets,
 			restSeconds: details.restSeconds,
-			notes: details.notes?.trim() || null
+			notes: details.notes?.trim() || null,
+			supersetGroup: details.supersetGroup
 		})
 		.where(and(eq(planExercises.id, planExerciseId), eq(planExercises.planId, planId)));
 }

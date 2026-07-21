@@ -2,8 +2,10 @@
 	import { enhance } from '$app/forms';
 	import NumberField from '$lib/components/NumberField.svelte';
 	import TextareaField from '$lib/components/TextareaField.svelte';
+	import SelectField from '$lib/components/SelectField.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { SUPERSET_OPTIONS } from '$lib/utils/supersets';
 
 	type PlanExercise = {
 		id: number;
@@ -14,20 +16,23 @@
 		targetSets: number | null;
 		restSeconds: number | null;
 		notes: string | null;
+		supersetGroup: number | null;
 	};
 
-	let { exercise }: { exercise: PlanExercise } = $props();
+	let { exercise, position }: { exercise: PlanExercise; position?: string } = $props();
 
 	let editing = $state(false);
 	let editTargetSets = $state<number | null>(exercise.targetSets);
 	let editRestSeconds = $state<number | null>(exercise.restSeconds);
 	let editNotes = $state(exercise.notes ?? '');
+	let editSupersetGroup = $state(exercise.supersetGroup ? String(exercise.supersetGroup) : '');
 	let editError = $state('');
 
 	function startEdit() {
 		editTargetSets = exercise.targetSets;
 		editRestSeconds = exercise.restSeconds;
 		editNotes = exercise.notes ?? '';
+		editSupersetGroup = exercise.supersetGroup ? String(exercise.supersetGroup) : '';
 		editError = '';
 		editing = true;
 	}
@@ -47,7 +52,9 @@
 <div class="py-2.5">
 	<div class="flex items-center justify-between gap-2">
 		<div class="min-w-0">
-			<span class="block truncate font-medium text-[var(--color-text)]">{exercise.exerciseName}</span>
+			<span class="block truncate font-medium text-[var(--color-text)]">
+					{#if position}<span class="text-[var(--color-accent)] font-semibold">{position}</span> {/if}{exercise.exerciseName}
+				</span>
 			{#if subtitle}
 				<p class="text-xs text-[var(--color-text-muted)]">{subtitle}</p>
 			{/if}
@@ -105,6 +112,7 @@
 				<NumberField label="Target sets" name="targetSets" bind:value={editTargetSets} min={0} step={1} />
 				<NumberField label="Rest, seconds" name="restSeconds" bind:value={editRestSeconds} min={0} step={15} />
 			</div>
+			<SelectField label="Superset" name="supersetGroup" bind:value={editSupersetGroup} options={SUPERSET_OPTIONS} />
 			<TextareaField label="Note" name="notes" bind:value={editNotes} rows={2} placeholder="Optional" />
 			<div class="flex gap-2 justify-end">
 				<Button type="button" variant="ghost" onclick={() => (editing = false)}>Cancel</Button>

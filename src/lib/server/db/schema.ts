@@ -216,6 +216,10 @@ export const planExercises = sqliteTable('plan_exercises', {
 	targetSets: integer('target_sets'),
 	restSeconds: integer('rest_seconds'),
 	notes: text('notes'),
+	/** Exercises in one plan sharing a supersetGroup are performed as a superset — back-to-back, with
+	 *  rest taken only after the last exercise in the group. NULL = standalone. Rendered as A/B/C… in
+	 *  plan order (see src/lib/utils/supersets.ts). */
+	supersetGroup: integer('superset_group'),
 	sortOrder: integer('sort_order').notNull().default(0),
 	createdAt: timestamp('created_at')
 }, (t) => [
