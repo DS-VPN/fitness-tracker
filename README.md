@@ -11,6 +11,9 @@ installable as a PWA, and packaged to run on a home server with one command.
   grouped. Private by default, with an option to share your list with another account by
   username so you can shop together.
 - **Strength tracker** — log sets fast during a workout, per-exercise history/chart/PRs, estimated 1RM.
+- **Body tracker** — log body weight and measurements (waist, chest, arms, …), a smoothed weight
+  trend with a goal + BMI, and **progress photos**. Photos are strictly private to your account,
+  encrypted at rest, and stripped of location/camera metadata (see Security notes).
 
 ## Requirements
 
@@ -115,6 +118,17 @@ This app assumes you're reaching it over your own network (Tailscale, LAN, or a 
 **do not expose it directly to the public internet.** Account signup is open to anyone
 who can reach the app (no invite codes, no email verification, no rate limiting) — that's
 appropriate for a small trusted group on a private network, not for anything internet-facing.
+
+**Progress photos** are treated as the most sensitive data in the app and get extra protection
+regardless of the private-network assumption:
+
+- **Encrypted at rest** with AES-256-GCM. Set `PHOTO_ENCRYPTION_KEY` in `.env` to a 32-byte key
+  (`openssl rand -base64 32`); the on-disk files are ciphertext, decrypted only when served to the
+  owner. If the key is unset, photo upload/viewing is disabled and the rest of the app is unaffected.
+  **Back the key up alongside your database** — losing it makes existing photos unrecoverable.
+- **Metadata stripped** — EXIF/XMP/IPTC (including phone GPS coordinates) is removed before storage.
+- **Strictly private** — unlike meals and the shopping list, progress photos can never be shared;
+  every request is checked against the owner and served with `no-store`, so they don't linger in caches.
 
 ## Local development (without Docker)
 

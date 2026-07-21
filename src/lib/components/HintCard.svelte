@@ -16,7 +16,9 @@
 			| 'list'
 			| 'target'
 			| 'star'
-			| 'scan';
+			| 'scan'
+			| 'camera'
+			| 'scale';
 		children: Snippet;
 	} = $props();
 

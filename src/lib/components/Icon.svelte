@@ -21,7 +21,8 @@
 		| 'sliders'
 		| 'scan'
 		| 'target'
-		| 'camera';
+		| 'camera'
+		| 'scale';
 
 	let { name, size = 22, class: className = '' }: { name: IconName; size?: number; class?: string } =
 		$props();
@@ -108,5 +109,9 @@
 	{:else if name === 'camera'}
 		<path d="M4 8h3l1.6-2.2a1 1 0 0 1 .8-.4h5.2a1 1 0 0 1 .8.4L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
 		<circle cx="12" cy="13.5" r="3.4" />
+	{:else if name === 'scale'}
+		<rect x="3.5" y="3.5" width="17" height="17" rx="3.5" />
+		<path d="M8.5 9.5a3.5 3.5 0 0 1 7 0" />
+		<path d="M12 9.5l2.2-1.3" />
 	{/if}
 </svg>

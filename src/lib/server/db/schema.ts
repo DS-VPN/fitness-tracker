@@ -302,3 +302,72 @@ export const barcodeCache = sqliteTable('barcode_cache', {
 	payload: text('payload').notNull(),
 	fetchedAt: timestamp('fetched_at')
 });
+
+/** Per-user display preferences + profile facts that don't belong to any single feature. One row per
+ *  user, created lazily on first write; reads fall back to defaults when absent. Units are display-only —
+ *  all body metrics are stored canonically (weight in kg, lengths in cm) and converted at the UI edge.
+ *  heightCm powers BMI. */
+export const userSettings = sqliteTable('user_settings', {
+	userId: integer('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+	weightUnit: text('weight_unit').notNull().default('kg'),
+	lengthUnit: text('length_unit').notNull().default('cm'),
+	heightCm: real('height_cm'),
+	updatedAt: timestamp('updated_at')
+}, (t) => [
+	check('user_settings_weight_unit_valid', sql`${t.weightUnit} in ('kg', 'lb')`),
+	check('user_settings_length_unit_valid', sql`${t.lengthUnit} in ('cm', 'in')`)
+]);
+
+/** Body-progress diary: one row per user per day (upsert/merge — logging weight and, later the same
+ *  day, a waist measurement land on the one row). Every metric is nullable so a partial log is valid.
+ *  Canonical units: weight in kg, all circumferences in cm; the UI converts to the user's preference. */
+export const bodyMetrics = sqliteTable('body_metrics', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	date: text('date').notNull(),
+	weightKg: real('weight_kg'),
+	bodyFatPct: real('body_fat_pct'),
+	neckCm: real('neck_cm'),
+	chestCm: real('chest_cm'),
+	waistCm: real('waist_cm'),
+	hipsCm: real('hips_cm'),
+	thighCm: real('thigh_cm'),
+	armCm: real('arm_cm'),
+	calfCm: real('calf_cm'),
+	notes: text('notes'),
+	createdAt: timestamp('created_at'),
+	updatedAt: timestamp('updated_at')
+}, (t) => [
+	unique('body_metrics_user_date_unique').on(t.userId, t.date),
+	index('body_metrics_user_date_idx').on(t.userId, t.date)
+]);
+
+/** One active body-weight goal per user (upsert semantics; the UNIQUE is droppable later for goal
+ *  history, mirroring exerciseGoals). targetWeightKg is canonical kg. */
+export const weightGoals = sqliteTable('weight_goals', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	targetWeightKg: real('target_weight_kg').notNull(),
+	targetDate: text('target_date'),
+	createdAt: timestamp('created_at'),
+	updatedAt: timestamp('updated_at')
+}, (t) => [unique('weight_goals_user_unique').on(t.userId)]);
+
+/** Progress photos — strictly private (never shareable, unlike meals) and encrypted at rest. `filename`
+ *  names an opaque AES-256-GCM ciphertext file on disk (see $lib/server/storage/progressPhotos); the
+ *  real image type is `mime` and `byteSize` is the plaintext size after metadata stripping. `pose` lets
+ *  the compare view line up the same angle across dates. */
+export const progressPhotos = sqliteTable('progress_photos', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	date: text('date').notNull(),
+	pose: text('pose'),
+	filename: text('filename').notNull(),
+	mime: text('mime').notNull(),
+	byteSize: integer('byte_size').notNull(),
+	caption: text('caption'),
+	createdAt: timestamp('created_at')
+}, (t) => [
+	index('progress_photos_user_date_idx').on(t.userId, t.date),
+	check('progress_photos_pose_valid', sql`${t.pose} is null or ${t.pose} in ('front', 'side', 'back')`)
+]);

@@ -58,6 +58,13 @@ sharing/ownership pattern:
   merged line item). `shoppingListShares` grants another account access to your list.
 - **Workouts**: `workoutPlans` → `planExercises` (template), separate from logged
   `workoutSessions` → `workoutSets` (actuals). `exerciseGoals` tracks per-exercise targets.
+- **Body**: `bodyMetrics` (one upsert row per user per day: weight + circumferences, all canonical
+  kg/cm, all nullable), `weightGoals` (one per user), `userSettings` (display units + height for BMI),
+  and `progressPhotos`. Progress photos are **strictly private (never shared) and encrypted at rest** —
+  the on-disk file is AES-256-GCM ciphertext (`$lib/server/crypto/photoCrypto`, key from
+  `PHOTO_ENCRYPTION_KEY`), written by `$lib/server/storage/progressPhotos` after EXIF/metadata stripping
+  (`$lib/server/storage/images`), and only ever decrypted in the ownership-checked serve route
+  `routes/body/photos/[id]/file`. Don't add sharing or a non-encrypted path for these.
 
 `products` (user-owned) and `catalogProducts` (shared global product catalog, seeded from Open
 Food Facts data — see `presetData.ts`/`presets.ts`/`catalogData.json`) are distinct tables;
@@ -82,4 +89,7 @@ the app — see the script's own header comments for `REPO_URL`/`APP_DIR`/`APP_P
 
 The app is explicitly designed for a trusted private network (Tailscale/LAN/VPN) — signup has
 no invite codes, email verification, or rate limiting. Don't add internet-facing hardening
-speculatively; that's a deliberate scope boundary, not an oversight.
+speculatively; that's a deliberate scope boundary, not an oversight. The one place extra hardening
+*is* warranted is progress photos: they protect **data at rest** (stolen volume/backup, EXIF-GPS
+leakage, another local account) rather than the network perimeter, so their encryption + metadata
+stripping + owner-only access is in scope, not a contradiction of the boundary above.

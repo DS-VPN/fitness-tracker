@@ -8,7 +8,7 @@
 		description = '',
 		children
 	}: {
-		icon?: 'home' | 'meals' | 'cart' | 'dumbbell' | 'list' | 'search';
+		icon?: 'home' | 'meals' | 'cart' | 'dumbbell' | 'list' | 'search' | 'camera' | 'scale';
 		title: string;
 		description?: string;
 		children?: Snippet;
