@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { workoutSets, workoutSessions, exercises } from '$lib/server/db/schema';
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import { estimatedOneRepMax } from '$lib/utils/oneRepMax';
 
 export async function getExerciseProgress(userId: number, exerciseId: number) {
@@ -78,4 +78,27 @@ export async function recentExerciseProgress(userId: number, limit = 3) {
 		if (progress) results.push(progress);
 	}
 	return results;
+}
+
+/** Count of logged sets per muscle group across the given (inclusive) ISO date window — for a
+ *  weekly "sets by muscle" breakdown. Untagged exercises come back as a single `muscleGroup: null`
+ *  row. Dates are ISO strings, so string comparison is chronological. */
+export async function weeklySetsByMuscleGroup(userId: number, fromIso: string, toIso: string) {
+	const rows = await db
+		.select({
+			muscleGroup: exercises.muscleGroup,
+			sets: sql<number>`count(${workoutSets.id})`.mapWith(Number)
+		})
+		.from(workoutSets)
+		.innerJoin(workoutSessions, eq(workoutSessions.id, workoutSets.sessionId))
+		.innerJoin(exercises, eq(exercises.id, workoutSets.exerciseId))
+		.where(
+			and(
+				eq(workoutSessions.userId, userId),
+				gte(workoutSessions.date, fromIso),
+				lte(workoutSessions.date, toIso)
+			)
+		)
+		.groupBy(exercises.muscleGroup);
+	return rows.map((r) => ({ muscleGroup: r.muscleGroup, sets: r.sets }));
 }
