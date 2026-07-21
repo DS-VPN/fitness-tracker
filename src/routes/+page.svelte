@@ -283,6 +283,24 @@
 				<p class="mt-3 text-xs text-[var(--color-text-muted)] tabular-nums">
 					{data.week.daysLogged} of 7 days logged{#if data.week.sets > 0}&nbsp;· {data.week.sets} sets{/if}
 				</p>
+				{#if data.week.muscleGroups.length > 0}
+					{@const maxSets = Math.max(...data.week.muscleGroups.map((m) => m.sets))}
+					<div class="mt-3 pt-3 border-t border-[var(--color-border)] space-y-1.5">
+						<p class="section-label">Sets by muscle</p>
+						{#each data.week.muscleGroups as m (m.label)}
+							<div class="flex items-center gap-2">
+								<span class="w-24 shrink-0 text-xs text-[var(--color-text-muted)] truncate">{m.label}</span>
+								<div class="flex-1 h-1.5 rounded-full bg-[var(--color-surface-alt)] overflow-hidden">
+									<div
+										class="h-full rounded-full bg-[var(--color-accent)]"
+										style={`width:${maxSets ? (m.sets / maxSets) * 100 : 0}%`}
+									></div>
+								</div>
+								<span class="w-6 shrink-0 text-right text-xs tabular-nums text-[var(--color-text)]">{m.sets}</span>
+							</div>
+						{/each}
+					</div>
+				{/if}
 			</Card>
 		</div>
 	{/if}

@@ -3,7 +3,7 @@ import { listMeals } from '$lib/server/repositories/meals';
 import { listProducts } from '$lib/server/repositories/products';
 import { listSessions } from '$lib/server/repositories/workouts';
 import { getPlan } from '$lib/server/repositories/workoutPlans';
-import { recentExerciseProgress } from '$lib/server/repositories/progress';
+import { recentExerciseProgress, weeklySetsByMuscleGroup } from '$lib/server/repositories/progress';
 import { goalsWithProgress } from '$lib/server/repositories/exerciseGoals';
 import {
 	getTargets,
@@ -24,8 +24,10 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ locals }) => {
 	const userId = locals.user!.id;
 	const today = todayIso();
+	// This week: the last 7 calendar days of food + training, averaged over days actually logged.
+	const weekFrom = shiftIsoDate(today, -6);
 
-	const [targets, summary, entries, sessions, goals, exerciseProgress, meals, products, recentDays] =
+	const [targets, summary, entries, sessions, goals, exerciseProgress, meals, products, recentDays, muscleSets] =
 		await Promise.all([
 			getTargets(userId),
 			daySummary(userId, today),
@@ -35,11 +37,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 			recentExerciseProgress(userId, 3),
 			listMeals(userId),
 			listProducts(userId),
-			recentDaySummaries(userId, 30)
+			recentDaySummaries(userId, 30),
+			weeklySetsByMuscleGroup(userId, weekFrom, today)
 		]);
 
-	// This week: the last 7 calendar days of food + training, averaged over days actually logged.
-	const weekFrom = shiftIsoDate(today, -6);
 	const weekDays = recentDays.filter((d) => d.date >= weekFrom);
 	const daysLogged = weekDays.length;
 	const weekAvg = daysLogged
@@ -53,7 +54,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 		daysLogged,
 		avg: weekAvg,
 		workouts: weekSessions.length,
-		sets: weekSessions.reduce((sum, s) => sum + s.setCount, 0)
+		sets: weekSessions.reduce((sum, s) => sum + s.setCount, 0),
+		// Sets per muscle group this week, biggest first; untagged sets fold into an "Other" row.
+		muscleGroups: muscleSets
+			.map((m) => ({ label: m.muscleGroup ?? 'Other', sets: m.sets }))
+			.sort((a, b) => b.sets - a.sets)
 	};
 
 	// Today's workout status: the most recent session dated today, enriched with its plan's totals when
