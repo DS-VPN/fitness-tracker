@@ -11,6 +11,7 @@
 	import QuickEntryRow from '$lib/components/workouts/QuickEntryRow.svelte';
 	import ExercisePicker from '$lib/components/workouts/ExercisePicker.svelte';
 	import RestTimer from '$lib/components/workouts/RestTimer.svelte';
+	import { groupIntoBlocks, isSuperset, supersetLabel } from '$lib/utils/supersets';
 	import { todayIso } from '$lib/utils/todayIso';
 	import { shiftIsoDate } from '$lib/utils/isoDate';
 	import type { PageData } from './$types';
@@ -27,6 +28,7 @@
 		targetSets?: number | null;
 		restSeconds?: number | null;
 		notes?: string | null;
+		supersetGroup?: number | null;
 	};
 
 	let dateValue = $state(data.session.date);
@@ -59,7 +61,8 @@
 							sets: logged?.sets ?? [],
 							targetSets: p.targetSets,
 							restSeconds: p.restSeconds,
-							notes: p.notes
+							notes: p.notes,
+							supersetGroup: p.supersetGroup
 						};
 					}),
 					...data.exerciseGroups.filter((g) => !data.planExercises.some((p) => p.exerciseId === g.exerciseId)),
@@ -81,6 +84,9 @@
 		sessionExerciseList.reduce((sum, g) => sum + Math.min(g.sets.length, g.targetSets ?? g.sets.length), 0)
 	);
 	const totalLogged = $derived(sessionExerciseList.reduce((sum, g) => sum + g.sets.length, 0));
+
+	// Render blocks: consecutive plan exercises sharing a superset group collapse into one block.
+	const blocks = $derived(groupIntoBlocks(sessionExerciseList, (g) => g.supersetGroup ?? null));
 
 	let restTarget = $state(90);
 	let restKey = $state(0);
@@ -174,75 +180,93 @@
 		</p>
 	{/if}
 
+	{#snippet exerciseCard(group: Group, restAfter: boolean, restSeconds: number, positionLabel: string | undefined)}
+		{@const complete = !!group.targetSets && group.sets.length >= group.targetSets}
+		{@const goal = data.goalsByExercise[group.exerciseId]}
+		<Card>
+			<div class="flex items-center justify-between mb-1">
+				<div class="flex items-baseline gap-2 min-w-0">
+					{#if positionLabel}<span class="shrink-0 text-xs font-semibold text-[var(--color-accent)]">{positionLabel}</span>{/if}
+					<h2 class="text-base font-medium text-[var(--color-text)] truncate">
+						{group.exerciseName}{#if group.exerciseBrand}<span class="text-[var(--color-text-muted)]"> — {group.exerciseBrand}</span>{/if}
+					</h2>
+				</div>
+				<a href={`/exercises/${group.exerciseId}`} class="text-xs font-medium text-[var(--color-accent)] shrink-0">Progress</a>
+			</div>
+
+			{#if group.targetSets || goal}
+				<p class="text-xs mb-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+					{#if group.targetSets}
+						<span class={complete ? 'text-[var(--color-success)] font-medium' : 'text-[var(--color-text-muted)]'}>
+							{#if complete}&check;&nbsp;{/if}{group.sets.length}/{group.targetSets} sets
+						</span>
+					{/if}
+					{#if goal}
+						<span class="inline-flex items-center gap-1 text-[var(--color-accent)]">
+							<Icon name="target" size={12} />
+							Goal: {goal.targetWeight} kg &times; {goal.targetReps}
+						</span>
+					{/if}
+				</p>
+			{/if}
+			{#if group.notes}
+				<p class="text-xs text-[var(--color-text-muted)] mb-2">{group.notes}</p>
+			{/if}
+
+			{#if group.sets.length > 0}
+				<div class="divide-y divide-[var(--color-border)] mb-2">
+					{#each group.sets as set, i (set.id)}
+						<SetRow
+							{set}
+							index={i}
+							meetsGoal={!!goal && set.weight >= goal.targetWeight && set.reps >= goal.targetReps}
+						/>
+					{/each}
+				</div>
+			{/if}
+
+			<div class="space-y-2">
+				{#each Array.from({ length: remainingSlotCount(group) }) as _, i (i)}
+					{@const defaults = slotDefaults(group, i)}
+					<QuickEntryRow
+						exerciseId={group.exerciseId}
+						label={`Set ${group.sets.length + i + 1}`}
+						initialReps={defaults.reps}
+						initialWeight={defaults.weight}
+						onLogged={() => { if (restAfter) startRest(restSeconds); }}
+					/>
+				{/each}
+			</div>
+
+			<button
+				type="button"
+				onclick={() => addExtraSlot(group.exerciseId)}
+				class="mt-2 py-1 text-sm font-medium text-[var(--color-accent)]"
+			>
+				+ Add another set
+			</button>
+		</Card>
+	{/snippet}
+
 	{#if sessionExerciseList.length === 0}
 		<EmptyState icon="dumbbell" title="No exercises yet" description="Add an exercise below to start logging sets." />
 	{:else}
 		<div class="space-y-4">
-			{#each sessionExerciseList as group (group.exerciseId)}
-				{@const complete = !!group.targetSets && group.sets.length >= group.targetSets}
-				{@const goal = data.goalsByExercise[group.exerciseId]}
-				<Card>
-					<div class="flex items-center justify-between mb-1">
-						<div class="flex items-baseline gap-2 min-w-0">
-							<h2 class="text-base font-medium text-[var(--color-text)] truncate">
-								{group.exerciseName}{#if group.exerciseBrand}<span class="text-[var(--color-text-muted)]"> — {group.exerciseBrand}</span>{/if}
-							</h2>
-						</div>
-						<a href={`/exercises/${group.exerciseId}`} class="text-xs font-medium text-[var(--color-accent)] shrink-0">Progress</a>
-					</div>
-
-					{#if group.targetSets || goal}
-						<p class="text-xs mb-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
-							{#if group.targetSets}
-								<span class={complete ? 'text-[var(--color-success)] font-medium' : 'text-[var(--color-text-muted)]'}>
-									{#if complete}&check;&nbsp;{/if}{group.sets.length}/{group.targetSets} sets
-								</span>
-							{/if}
-							{#if goal}
-								<span class="inline-flex items-center gap-1 text-[var(--color-accent)]">
-									<Icon name="target" size={12} />
-									Goal: {goal.targetWeight} kg &times; {goal.targetReps}
-								</span>
-							{/if}
+			{#each blocks as block (block.superset ? `g${block.group}` : `e${block.items[0].exerciseId}`)}
+				{#if isSuperset(block)}
+					{@const label = supersetLabel(block.group!)}
+					{@const groupRest = block.items[block.items.length - 1].restSeconds ?? 90}
+					<div class="rounded-[var(--radius-lg)] border border-[var(--color-accent)]/40 bg-[var(--color-accent-soft)]/15 p-2 space-y-2">
+						<p class="section-label px-1 text-[var(--color-accent)]">
+							Superset {label} · rest after {label}{block.items.length}
 						</p>
-					{/if}
-					{#if group.notes}
-						<p class="text-xs text-[var(--color-text-muted)] mb-2">{group.notes}</p>
-					{/if}
-
-					{#if group.sets.length > 0}
-						<div class="divide-y divide-[var(--color-border)] mb-2">
-							{#each group.sets as set, i (set.id)}
-								<SetRow
-									{set}
-									index={i}
-									meetsGoal={!!goal && set.weight >= goal.targetWeight && set.reps >= goal.targetReps}
-								/>
-							{/each}
-						</div>
-					{/if}
-
-					<div class="space-y-2">
-						{#each Array.from({ length: remainingSlotCount(group) }) as _, i (i)}
-							{@const defaults = slotDefaults(group, i)}
-							<QuickEntryRow
-								exerciseId={group.exerciseId}
-								label={`Set ${group.sets.length + i + 1}`}
-								initialReps={defaults.reps}
-								initialWeight={defaults.weight}
-								onLogged={() => startRest(group.restSeconds ?? 90)}
-							/>
+						{#each block.items as group, i (group.exerciseId)}
+							{@render exerciseCard(group, i === block.items.length - 1, groupRest, `${label}${i + 1}`)}
 						{/each}
 					</div>
-
-					<button
-						type="button"
-						onclick={() => addExtraSlot(group.exerciseId)}
-						class="mt-2 py-1 text-sm font-medium text-[var(--color-accent)]"
-					>
-						+ Add another set
-					</button>
-				</Card>
+				{:else}
+					{@render exerciseCard(block.items[0], true, block.items[0].restSeconds ?? 90, undefined)}
+				{/if}
 			{/each}
 		</div>
 	{/if}

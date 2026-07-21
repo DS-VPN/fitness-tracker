@@ -8,6 +8,7 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import PlanExerciseRow from '$lib/components/workouts/PlanExerciseRow.svelte';
 	import PlanExercisePicker from '$lib/components/workouts/PlanExercisePicker.svelte';
+	import { groupIntoBlocks, isSuperset, supersetLabel } from '$lib/utils/supersets';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -15,6 +16,8 @@
 	let nameValue = $state(data.plan.name);
 	let nameError = $state('');
 	let pickerOpen = $state(false);
+
+	const blocks = $derived(groupIntoBlocks(data.exercises, (e) => e.supersetGroup));
 </script>
 
 <svelte:head><title>{data.plan.name} · Fitness Tracker</title></svelte:head>
@@ -55,9 +58,21 @@
 			<EmptyState icon="dumbbell" title="No exercises yet" description="Add exercises to build this plan." />
 		{:else}
 			<Card>
-				<div class="divide-y divide-[var(--color-border)]">
-					{#each data.exercises as exercise (exercise.id)}
-						<PlanExerciseRow {exercise} />
+				<div class="space-y-2">
+					{#each blocks as block (block.superset ? `g${block.group}` : `e${block.items[0].id}`)}
+						{#if isSuperset(block)}
+							{@const label = supersetLabel(block.group!)}
+							<div class="rounded-[var(--radius-md)] border border-[var(--color-accent)]/40 bg-[var(--color-accent-soft)]/20 px-2.5">
+								<p class="section-label pt-2 pb-0.5 text-[var(--color-accent)]">Superset {label}</p>
+								<div class="divide-y divide-[var(--color-border)]">
+									{#each block.items as exercise, i (exercise.id)}
+										<PlanExerciseRow {exercise} position={`${label}${i + 1}`} />
+									{/each}
+								</div>
+							</div>
+						{:else}
+							<PlanExerciseRow exercise={block.items[0]} />
+						{/if}
 					{/each}
 				</div>
 			</Card>

@@ -51,6 +51,13 @@ function parseRestSeconds(form: FormData): number | null {
 	return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+function parseSupersetGroup(form: FormData): number | null {
+	const raw = form.get('supersetGroup');
+	if (raw === null || String(raw).trim() === '') return null;
+	const n = Math.round(Number(raw));
+	return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 export const actions: Actions = {
 	rename: async ({ request, params, locals }) => {
 		const id = Number(params.id);
@@ -113,7 +120,8 @@ export const actions: Actions = {
 			await updatePlanExerciseDetails(locals.user!.id, planId, planExerciseId, {
 				targetSets: parseTargetSets(form),
 				restSeconds: parseRestSeconds(form),
-				notes: notes || null
+				notes: notes || null,
+				supersetGroup: parseSupersetGroup(form)
 			});
 		} catch (e) {
 			return fail(400, { error: e instanceof Error ? e.message : 'Could not update' });
