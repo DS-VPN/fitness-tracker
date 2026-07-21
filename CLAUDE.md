@@ -40,13 +40,21 @@ Requires Node.js 22+. Docker Compose is the intended production path (`docker co
 `src/lib/server/repositories/*.ts` — never touches `db` or `schema` directly. Each repository
 file owns one domain (meals, products, workouts, shoppingList, etc.) and takes a `userId` as
 the first argument for scoping; there is no ORM-level row security, so a repository function
-that forgets to filter by `userId` is a cross-account data leak.
+that forgets to filter by `userId` is a cross-account data leak. The **one deliberate exception**
+is `repositories/admin.ts`: its queries are un-scoped (they read across all users) precisely
+because it powers the admin panel, so it must only ever be reached behind the admin gate — every
+`/admin` action re-checks `locals.user.isAdmin` right next to the un-scoped call. It manages
+accounts and shows aggregates; it never exposes another user's private *content* (a progress photo
+is still only served by the owner-only route).
 
 **Auth:** `src/hooks.server.ts` is the single gate — it resolves the session cookie to a user
 on every request via `getSessionUser`, sets `event.locals.user`, and redirects unauthenticated
 requests to `/login` except for the small `PUBLIC_PATHS` allowlist. Route code reads
 `locals.user` (non-null by the time a protected route runs) rather than re-checking auth.
 Sessions are opaque random tokens in the `sessions` table (1 year expiry), not JWTs.
+`users.isAdmin` gates `/admin` (hooks redirects non-admins; the `/admin` layout + every action
+re-check). `ensureAdminExists` (run at startup from hooks) promotes the earliest account if no
+admin exists, so the first-registered user becomes admin automatically.
 
 **Schema** (`src/lib/server/db/schema.ts`, ~20 tables) has three domains that share the same
 sharing/ownership pattern:
@@ -74,6 +82,14 @@ Food Facts data — see `presetData.ts`/`presets.ts`/`catalogData.json`) are dis
 **Migrations:** `schema.ts` is the source of truth. After editing it, run `npm run db:generate`
 to produce a versioned SQL file in `drizzle/` — commit that file. `db:push` is dev-only
 schema-sync and must never be used as a substitute for a generated migration in a real change.
+
+> **FK caveat (schema.ts ≠ migrations):** for `categories`, `exercises`, `meals`, and
+> `workout_sessions`, `schema.ts` declares `user_id ... onDelete: 'cascade'`, but the **migration-built
+> schema has `NO ACTION`** (the cascade was never generated into a migration). So `db:push` dev DBs
+> cascade while migration-built (prod) DBs don't — and a plain `DELETE FROM users` throws a FOREIGN KEY
+> error on prod. `admin.deleteUser` therefore deletes a user's rows **explicitly, child→parent, in a
+> transaction** rather than trusting cascade. If you ever add a new user-owned table, add it to that
+> deletion list. (All other user FKs — sessions, products, body/photos, etc. — are genuinely cascade.)
 
 **Validation:** minimal and centralized — `src/lib/server/validation.ts` only covers
 username/password rules. Other input validation happens inline in the relevant

@@ -9,7 +9,7 @@ const KEY_LENGTH = 64;
 const SESSION_COOKIE = 'session';
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 365; // 1 year
 
-export type SessionUser = { id: number; username: string };
+export type SessionUser = { id: number; username: string; isAdmin: boolean };
 
 export async function hashPassword(password: string): Promise<string> {
 	const salt = randomBytes(16);
@@ -50,7 +50,7 @@ export async function createSession(userId: number): Promise<{ token: string; ex
 export async function getSessionUser(token: string | undefined): Promise<SessionUser | null> {
 	if (!token) return null;
 	const [row] = await db
-		.select({ id: users.id, username: users.username })
+		.select({ id: users.id, username: users.username, isAdmin: users.isAdmin })
 		.from(sessions)
 		.innerJoin(users, eq(users.id, sessions.userId))
 		.where(and(eq(sessions.id, token), gt(sessions.expiresAt, new Date())));
