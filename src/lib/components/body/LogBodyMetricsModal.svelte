@@ -44,7 +44,10 @@
 	let date = $state(todayIso());
 	let weight = $state<number | null>(null);
 	let bodyFat = $state<number | null>(null);
-	let lengths = $state<Record<string, number | null>>({});
+	// Seed every measurement key to null up-front: the fields render (and bind) the moment the modal
+	// opens, before the seeding $effect below runs, and binding `undefined` to NumberField's `value`
+	// (which has a null fallback) throws Svelte's props_invalid_value and aborts the render.
+	let lengths = $state<Record<string, number | null>>(Object.fromEntries(LENGTHS.map(({ key }) => [key, null])));
 	let notes = $state('');
 	let error = $state('');
 
