@@ -18,7 +18,7 @@
 	<link rel="icon" href="/icons/icon-192.png" sizes="192x192" />
 </svelte:head>
 
-<div class="min-h-full flex flex-col">
+<div class="min-h-dvh flex flex-col">
 	<main class={`flex-1 ${showChrome ? 'pb-24' : ''}`}>
 		{@render children()}
 	</main>
