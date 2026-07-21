@@ -9,7 +9,9 @@ import {
 	removeIngredient,
 	updateIngredientQuantity,
 	eligibleSubMeals,
-	flatProductIngredients
+	flatProductIngredients,
+	setMealPhoto,
+	clearMealPhoto
 } from '$lib/server/repositories/meals';
 import { listProducts, getProduct } from '$lib/server/repositories/products';
 import { listCategories } from '$lib/server/repositories/categories';
@@ -82,6 +84,25 @@ export const actions: Actions = {
 		const id = Number(params.id);
 		await deleteMeal(locals.user!.id, id);
 		throw redirect(303, '/meals');
+	},
+
+	uploadPhoto: async ({ request, params, locals }) => {
+		const id = Number(params.id);
+		const form = await request.formData();
+		const file = form.get('photo');
+		if (!(file instanceof File) || file.size === 0) return fail(400, { photoError: 'Choose a photo first' });
+		try {
+			await setMealPhoto(locals.user!.id, id, file);
+		} catch (e) {
+			return fail(400, { photoError: e instanceof Error ? e.message : 'Could not save photo' });
+		}
+		return { photoSuccess: true };
+	},
+
+	deletePhoto: async ({ params, locals }) => {
+		const id = Number(params.id);
+		await clearMealPhoto(locals.user!.id, id);
+		return { photoSuccess: true };
 	},
 
 	addProductIngredient: async ({ request, params, locals }) => {

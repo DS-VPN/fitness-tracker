@@ -13,7 +13,7 @@ import { dirname, join } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT = join(__dirname, '..', 'src', 'lib', 'server', 'catalogData.ts');
 
-const USER_AGENT = 'FitnessTracker/1.0 (self-hosted; +https://github.com/DS-VPN/fitness-tracker)';
+const USER_AGENT = 'FitnessTracker/1.0 (self-hosted; +https://github.com/DS-X256/fitness-tracker)';
 const TARGET = 400; // how many curated items we want to keep
 const PAGE_SIZE = 100;
 const MAX_PAGES = 30; // popularity-sorted, so the good stuff is early; cap the crawl

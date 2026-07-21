@@ -1,0 +1,1 @@
+ALTER TABLE `meals` ADD `photo_filename` text;

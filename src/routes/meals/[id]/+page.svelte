@@ -8,6 +8,7 @@
 	import IngredientRow from '$lib/components/meals/IngredientRow.svelte';
 	import IngredientPicker from '$lib/components/meals/IngredientPicker.svelte';
 	import ShareMealsModal from '$lib/components/meals/ShareMealsModal.svelte';
+	import MealPhotoModal from '$lib/components/meals/MealPhotoModal.svelte';
 	import NumberStepper from '$lib/components/NumberStepper.svelte';
 	import PortionPicker from '$lib/components/PortionPicker.svelte';
 	import { formatPortionsPhrase } from '$lib/utils/formatPortions';
@@ -19,6 +20,8 @@
 
 	let pickerOpen = $state(false);
 	let shareOpen = $state(false);
+	let photoOpen = $state(false);
+	const photoSrc = $derived(`/meals/${meal.id}/photo?v=${meal.updatedAt.getTime()}`);
 	let added = $state(false);
 	let addedCount = $state(0);
 	let addedTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -58,6 +61,31 @@
 />
 
 <div class="mx-auto max-w-md space-y-4 px-4 pb-6">
+	{#if meal.photoFilename}
+		{#if isOwner}
+			<button
+				type="button"
+				class="block w-full overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)]"
+				onclick={() => (photoOpen = true)}
+			>
+				<img src={photoSrc} alt="" class="aspect-video w-full object-cover" />
+			</button>
+		{:else}
+			<div class="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)]">
+				<img src={photoSrc} alt="" class="aspect-video w-full object-cover" />
+			</div>
+		{/if}
+	{:else if isOwner}
+		<button
+			type="button"
+			class="flex w-full items-center justify-center gap-1.5 rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] py-2.5 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-surface-alt)]"
+			onclick={() => (photoOpen = true)}
+		>
+			<Icon name="camera" size={16} />
+			Add photo
+		</button>
+	{/if}
+
 	<Card>
 		<div class="grid grid-cols-2 gap-3">
 			{#each macroRows as row (row.label)}
@@ -226,4 +254,5 @@
 {#if isOwner}
 	<IngredientPicker bind:open={pickerOpen} products={data.products} subMeals={data.subMeals} />
 	<ShareMealsModal bind:open={shareOpen} shares={data.shares} meal={{ id: meal.id, name: meal.name }} />
+	<MealPhotoModal bind:open={photoOpen} hasPhoto={!!meal.photoFilename} {photoSrc} />
 {/if}

@@ -12,7 +12,7 @@
 
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-https://github.com/DS-VPN/fitness-tracker.git}"
+REPO_URL="${REPO_URL:-https://github.com/DS-X256/fitness-tracker.git}"
 APP_DIR="${APP_DIR:-/opt/fitness-tracker}"
 APP_PORT="${APP_PORT:-3000}"
 INSTALL_LOG="/var/log/fitness-tracker-install.log"

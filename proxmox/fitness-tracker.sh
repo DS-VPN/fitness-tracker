@@ -18,7 +18,7 @@
 # or, if you haven't cloned the repo onto the host yet (works once this repo is public,
 # or with a token embedded in the URL — see the README's Proxmox section):
 #
-#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/DS-VPN/fitness-tracker/main/proxmox/fitness-tracker.sh)"
+#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/DS-X256/fitness-tracker/main/proxmox/fitness-tracker.sh)"
 #
 # To update an existing install later, run this SAME command again — but *inside* the
 # container (`pct enter <CTID>`, or ssh in), not on the host. It detects it's running
@@ -31,10 +31,10 @@
 
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-https://github.com/DS-VPN/fitness-tracker.git}"
+REPO_URL="${REPO_URL:-https://github.com/DS-X256/fitness-tracker.git}"
 APP_DIR="${APP_DIR:-/opt/fitness-tracker}"
 APP_PORT="${APP_PORT:-3000}"
-RAW_INSTALL_URL="https://raw.githubusercontent.com/DS-VPN/fitness-tracker/main/proxmox/install/fitness-tracker-install.sh"
+RAW_INSTALL_URL="https://raw.githubusercontent.com/DS-X256/fitness-tracker/main/proxmox/install/fitness-tracker-install.sh"
 APP="Fitness Tracker"
 
 # ------------------------------------------------------------------------------------

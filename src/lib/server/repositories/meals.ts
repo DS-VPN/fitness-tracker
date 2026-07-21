@@ -2,6 +2,7 @@ import { db } from '$lib/server/db';
 import { meals, categories, mealCategories, mealIngredients, products } from '$lib/server/db/schema';
 import { createProduct, type ProductInput } from '$lib/server/repositories/products';
 import { canViewMeal } from '$lib/server/repositories/mealShares';
+import { saveMealPhoto, deleteMealPhotoFile } from '$lib/server/storage/mealPhotos';
 import { and, eq, inArray, like, asc, desc, sql } from 'drizzle-orm';
 
 export type Macros = { calories: number; protein: number; carbs: number; fat: number };
@@ -290,7 +291,30 @@ export async function updateMealDetails(
 }
 
 export async function deleteMeal(userId: number, id: number) {
+	const [row] = await db
+		.select({ photoFilename: meals.photoFilename })
+		.from(meals)
+		.where(and(eq(meals.id, id), eq(meals.userId, userId)));
 	await db.delete(meals).where(and(eq(meals.id, id), eq(meals.userId, userId)));
+	if (row) await deleteMealPhotoFile(row.photoFilename);
+}
+
+/** Saves `file` as the meal's photo, replacing (and cleaning up) any previous one. */
+export async function setMealPhoto(userId: number, mealId: number, file: File) {
+	await assertMealOwned(userId, mealId);
+	const [row] = await db.select({ photoFilename: meals.photoFilename }).from(meals).where(eq(meals.id, mealId));
+
+	const filename = await saveMealPhoto(mealId, file);
+	await db.update(meals).set({ photoFilename: filename, updatedAt: new Date() }).where(eq(meals.id, mealId));
+	await deleteMealPhotoFile(row?.photoFilename);
+}
+
+export async function clearMealPhoto(userId: number, mealId: number) {
+	await assertMealOwned(userId, mealId);
+	const [row] = await db.select({ photoFilename: meals.photoFilename }).from(meals).where(eq(meals.id, mealId));
+
+	await db.update(meals).set({ photoFilename: null, updatedAt: new Date() }).where(eq(meals.id, mealId));
+	await deleteMealPhotoFile(row?.photoFilename);
 }
 
 export async function addProductIngredient(userId: number, mealId: number, productId: number, quantity: number) {

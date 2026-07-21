@@ -15,7 +15,7 @@ type CachedLookup =
 
 // Open Food Facts asks API consumers to identify themselves; browsers can't set User-Agent, which is
 // one of the reasons this lookup lives server-side (the other: a shared cross-user cache).
-const USER_AGENT = 'FitnessTracker/1.0 (self-hosted; +https://github.com/DS-VPN/fitness-tracker)';
+const USER_AGENT = 'FitnessTracker/1.0 (self-hosted; +https://github.com/DS-X256/fitness-tracker)';
 
 function num(v: unknown): number {
 	const n = Number(v);

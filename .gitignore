@@ -26,6 +26,9 @@ vite.config.ts.timestamp-*
 *.db-shm
 *.db-wal
 
+# Uploaded meal photos (dev-local; production stores these on the Docker volume)
+/uploads
+
 # Local Claude Code session state (not part of the app)
 .claude/
 catalog-dump.jsonl

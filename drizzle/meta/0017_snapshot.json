@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "21f2738e-1c8d-4456-ac24-4585c132f42e",
-  "prevId": "4c0174ba-c790-4010-b1d4-a43c39e3fccb",
+  "id": "1d884bbd-cf7f-4fd2-ab36-b05f6a603d3c",
+  "prevId": "21f2738e-1c8d-4456-ac24-4585c132f42e",
   "tables": {
     "barcode_cache": {
       "name": "barcode_cache",
@@ -1186,6 +1186,13 @@
         "notes": {
           "name": "notes",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "superset_group": {
+          "name": "superset_group",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
