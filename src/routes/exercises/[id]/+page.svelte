@@ -63,6 +63,14 @@
 />
 
 <div class="mx-auto max-w-md px-4 space-y-4">
+	{#if progress.exercise.muscleGroup}
+		<div>
+			<span
+				class="inline-flex h-6 items-center px-2.5 rounded-full text-xs font-medium bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
+				>{progress.exercise.muscleGroup}</span
+			>
+		</div>
+	{/if}
 	<Card>
 		<div class="flex items-center justify-between mb-1">
 			<h2 class="section-label flex items-center gap-1.5">
