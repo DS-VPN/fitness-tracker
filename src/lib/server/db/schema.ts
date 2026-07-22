@@ -374,3 +374,77 @@ export const progressPhotos = sqliteTable('progress_photos', {
 	index('progress_photos_user_date_idx').on(t.userId, t.date),
 	check('progress_photos_pose_valid', sql`${t.pose} is null or ${t.pose} in ('front', 'side', 'back')`)
 ]);
+
+/** --- Peptides -------------------------------------------------------------------------------------
+ *  A medication-adherence log for injectable peptide protocols. Health-sensitive and, like progress
+ *  photos, **strictly private (never shareable) and encrypted at rest** — but here the data is
+ *  structured, not a file. Every column that reveals WHAT the user takes (compound name, category,
+ *  dose, injection site, schedule, vial contents, free-text notes) is packed into an AES-256-GCM
+ *  `enc` blob (base64; see $lib/server/crypto/fieldCrypto), decrypted only inside the userId-scoped
+ *  repository layer. Cleartext columns are limited to what scoping, FK joins and date-range/calendar
+ *  reads actually need — `date` alone, without the compound/dose that sit in `enc`, is low-sensitivity.
+ *  Consequences of that choice: adherence %, "due today", cycle state and the body-weight overlay are
+ *  all computed in TypeScript after decrypt, never in SQL, and name-uniqueness is enforced in the repo
+ *  (the plaintext name never reaches a column an index could cover). Volumes are tiny (one user's
+ *  doses are hundreds of rows), so loading + decrypting a user's set in memory is fine. */
+export const peptides = sqliteTable('peptides', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	/** Encrypted JSON payload: { name, category, vialMg, notes }. AAD-bound to `${userId}:peptides`. */
+	enc: text('enc').notNull(),
+	/** Cleartext lifecycle flag so the active catalog lists without decrypting; contents stay in enc. */
+	active: integer('active', { mode: 'boolean' }).notNull().default(true),
+	sortOrder: integer('sort_order').notNull().default(0),
+	createdAt: timestamp('created_at')
+}, (t) => [index('peptides_user_idx').on(t.userId)]);
+
+/** The protocol/template (the "plan" side, mirroring workoutPlans). Drives the derived due-today list
+ *  and cycle state. All the schedule detail lives in `enc` — computing what's due requires decrypting
+ *  the handful of active protocols, which is cheap. */
+export const peptideProtocols = sqliteTable('peptide_protocols', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	peptideId: integer('peptide_id').notNull().references(() => peptides.id, { onDelete: 'cascade' }),
+	/** Encrypted JSON: { doseMcg, route, frequency, weekdayMask, timeOfDay, cycleWeeksOn, cycleWeeksOff,
+	 *  endDate, rotateSites, notes }. AAD-bound to `${userId}:peptide_protocols`. */
+	enc: text('enc').notNull(),
+	/** Cleartext so protocols can be ordered/filtered by start without decrypting; low-sensitivity alone. */
+	startDate: text('start_date').notNull(),
+	active: integer('active', { mode: 'boolean' }).notNull().default(true),
+	createdAt: timestamp('created_at'),
+	updatedAt: timestamp('updated_at')
+}, (t) => [
+	index('peptide_protocols_user_idx').on(t.userId),
+	index('peptide_protocols_peptide_idx').on(t.peptideId)
+]);
+
+/** Inventory: one reconstituted vial. Powers the reconstitution calculator, BAC-water expiry alerts and
+ *  "running low". Contents (mg powder, mL water, dates) are in `enc`; only the depleted flag is cleartext. */
+export const peptideVials = sqliteTable('peptide_vials', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	peptideId: integer('peptide_id').notNull().references(() => peptides.id, { onDelete: 'cascade' }),
+	/** Encrypted JSON: { vialMg, bacWaterMl, reconstitutedAt, expiresAt, notes }. AAD `${userId}:peptide_vials`. */
+	enc: text('enc').notNull(),
+	depleted: integer('depleted', { mode: 'boolean' }).notNull().default(false),
+	createdAt: timestamp('created_at')
+}, (t) => [index('peptide_vials_user_idx').on(t.userId)]);
+
+/** The dose log (the "actuals" side, mirroring workoutSessions/bodyMetrics). Snapshots the dose in `enc`
+ *  at log time so editing a protocol never rewrites history. peptideId/protocolId/vialId are cleartext
+ *  provenance (a bare FK id reveals grouping, not identity — you can't tell what compound it is without
+ *  decrypting the peptide row); `date` is cleartext to drive the adherence calendar without bulk decrypt. */
+export const peptideDoses = sqliteTable('peptide_doses', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+	peptideId: integer('peptide_id').notNull().references(() => peptides.id, { onDelete: 'cascade' }),
+	protocolId: integer('protocol_id').references(() => peptideProtocols.id, { onDelete: 'set null' }),
+	vialId: integer('vial_id').references(() => peptideVials.id, { onDelete: 'set null' }),
+	date: text('date').notNull(),
+	/** Encrypted JSON: { doseMcg, site, route, time, unitsShown, notes }. AAD `${userId}:peptide_doses`. */
+	enc: text('enc').notNull(),
+	createdAt: timestamp('created_at')
+}, (t) => [
+	index('peptide_doses_user_date_idx').on(t.userId, t.date),
+	index('peptide_doses_peptide_idx').on(t.peptideId)
+]);

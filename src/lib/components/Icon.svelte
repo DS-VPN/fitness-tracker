@@ -22,7 +22,12 @@
 		| 'scan'
 		| 'target'
 		| 'camera'
-		| 'scale';
+		| 'scale'
+		| 'health'
+		| 'vial'
+		| 'calendar'
+		| 'clock'
+		| 'alert';
 
 	let { name, size = 22, class: className = '' }: { name: IconName; size?: number; class?: string } =
 		$props();
@@ -113,5 +118,23 @@
 		<rect x="3.5" y="3.5" width="17" height="17" rx="3.5" />
 		<path d="M8.5 9.5a3.5 3.5 0 0 1 7 0" />
 		<path d="M12 9.5l2.2-1.3" />
+	{:else if name === 'health'}
+		<rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
+		<path d="M12 8.5v7M8.5 12h7" />
+	{:else if name === 'vial'}
+		<path d="M9 3h6" />
+		<path d="M10 3v13a2 2 0 0 0 4 0V3" />
+		<path d="M10 9.5h4" />
+	{:else if name === 'calendar'}
+		<rect x="3.5" y="5" width="17" height="15" rx="2.5" />
+		<path d="M3.5 9.5h17" />
+		<path d="M8 3v4M16 3v4" />
+	{:else if name === 'clock'}
+		<circle cx="12" cy="12" r="8.5" />
+		<path d="M12 7.5V12l3 2" />
+	{:else if name === 'alert'}
+		<path d="M12 4 2.5 20h19L12 4Z" />
+		<path d="M12 10v4" />
+		<path d="M12 17h.01" />
 	{/if}
 </svg>
