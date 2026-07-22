@@ -204,6 +204,11 @@ export async function deleteUser(actingId: number, userId: number) {
 		tx.run(sql`delete from body_metrics where user_id = ${u}`);
 		tx.run(sql`delete from weight_goals where user_id = ${u}`);
 		tx.run(sql`delete from progress_photos where user_id = ${u}`);
+		// peptides: doses reference protocols/vials/peptides, so delete child→parent.
+		tx.run(sql`delete from peptide_doses where user_id = ${u}`);
+		tx.run(sql`delete from peptide_protocols where user_id = ${u}`);
+		tx.run(sql`delete from peptide_vials where user_id = ${u}`);
+		tx.run(sql`delete from peptides where user_id = ${u}`);
 		tx.run(sql`delete from sessions where user_id = ${u}`);
 		tx.run(sql`delete from users where id = ${u}`);
 	});

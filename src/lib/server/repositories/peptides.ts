@@ -1,0 +1,150 @@
+import { db } from '$lib/server/db';
+import { peptides, peptideDoses } from '$lib/server/db/schema';
+import { and, asc, eq, sql } from 'drizzle-orm';
+import { decryptJson, encryptJson } from '$lib/server/crypto/fieldCrypto';
+import { isPeptideCategory, type PeptideCategory } from '$lib/utils/peptides';
+
+// The compound catalog. Sensitive fields (name, category, vial size, notes) live encrypted in `enc`;
+// only lifecycle flags are cleartext. Name-uniqueness is enforced here in TypeScript because the plaintext
+// name never reaches a column a UNIQUE index could cover.
+
+const aad = (userId: number) => `${userId}:peptides`;
+
+/** Decrypted payload stored in peptides.enc. */
+type PeptideEnc = {
+	name: string;
+	category: PeptideCategory | null;
+	vialMg: number | null;
+	notes: string | null;
+};
+
+export type Peptide = {
+	id: number;
+	active: boolean;
+	sortOrder: number;
+	createdAt: Date;
+} & PeptideEnc;
+
+export type PeptideWithStats = Peptide & { doseCount: number; lastDoseDate: string | null };
+
+export type PeptideInput = {
+	name?: string;
+	category?: PeptideCategory | null;
+	vialMg?: number | null;
+	notes?: string | null;
+};
+
+function decode(row: typeof peptides.$inferSelect): Peptide {
+	const enc = decryptJson<PeptideEnc>(row.enc, aad(row.userId));
+	return {
+		id: row.id,
+		active: row.active,
+		sortOrder: row.sortOrder,
+		createdAt: row.createdAt,
+		name: enc.name,
+		category: enc.category ?? null,
+		vialMg: enc.vialMg ?? null,
+		notes: enc.notes ?? null
+	};
+}
+
+function sanitize(input: Required<PeptideInput>): PeptideEnc {
+	const name = (input.name ?? '').trim();
+	if (!name) throw new Error('Peptide name is required');
+	if (name.length > 100) throw new Error('Name is too long');
+	const category = isPeptideCategory(input.category) ? input.category : null;
+	let vialMg: number | null = null;
+	if (input.vialMg != null) {
+		if (!Number.isFinite(input.vialMg) || input.vialMg <= 0 || input.vialMg > 1000) {
+			throw new Error('Vial size (mg) is out of range');
+		}
+		vialMg = Math.round(input.vialMg * 1000) / 1000;
+	}
+	const notes = input.notes?.trim() || null;
+	return { name, category, vialMg, notes };
+}
+
+export async function listPeptides(
+	userId: number,
+	opts: { includeInactive?: boolean } = {}
+): Promise<PeptideWithStats[]> {
+	const [rows, stats] = await Promise.all([
+		db.select().from(peptides).where(eq(peptides.userId, userId)).orderBy(asc(peptides.sortOrder), asc(peptides.id)),
+		db
+			.select({
+				peptideId: peptideDoses.peptideId,
+				doseCount: sql<number>`count(*)`.mapWith(Number),
+				lastDoseDate: sql<string | null>`max(${peptideDoses.date})`
+			})
+			.from(peptideDoses)
+			.where(eq(peptideDoses.userId, userId))
+			.groupBy(peptideDoses.peptideId)
+	]);
+	const statMap = new Map(stats.map((s) => [s.peptideId, s]));
+	return rows
+		.map((r) => {
+			const p = decode(r);
+			const s = statMap.get(p.id);
+			return { ...p, doseCount: s?.doseCount ?? 0, lastDoseDate: s?.lastDoseDate ?? null };
+		})
+		.filter((p) => opts.includeInactive || p.active);
+}
+
+export async function getPeptide(userId: number, id: number): Promise<Peptide | null> {
+	const [row] = await db.select().from(peptides).where(and(eq(peptides.id, id), eq(peptides.userId, userId)));
+	return row ? decode(row) : null;
+}
+
+/** Throws if a peptide with the same name (case-insensitive) already exists, ignoring `exceptId`. */
+async function assertNameFree(userId: number, name: string, exceptId?: number) {
+	const rows = await db.select().from(peptides).where(eq(peptides.userId, userId));
+	const clash = rows.some((r) => r.id !== exceptId && decode(r).name.toLowerCase() === name.toLowerCase());
+	if (clash) throw new Error('You already have a peptide with that name');
+}
+
+export async function createPeptide(userId: number, input: PeptideInput): Promise<Peptide> {
+	const data = sanitize({
+		name: input.name ?? '',
+		category: input.category ?? null,
+		vialMg: input.vialMg ?? null,
+		notes: input.notes ?? null
+	});
+	await assertNameFree(userId, data.name);
+	const [row] = await db
+		.insert(peptides)
+		.values({ userId, enc: encryptJson(data, aad(userId)), createdAt: new Date() })
+		.returning();
+	return decode(row);
+}
+
+export async function updatePeptide(userId: number, id: number, input: PeptideInput): Promise<void> {
+	const current = await getPeptide(userId, id);
+	if (!current) throw new Error('Peptide not found');
+	const merged = sanitize({
+		name: input.name ?? current.name,
+		category: input.category === undefined ? current.category : input.category,
+		vialMg: input.vialMg === undefined ? current.vialMg : input.vialMg,
+		notes: input.notes === undefined ? current.notes : input.notes
+	});
+	await assertNameFree(userId, merged.name, id);
+	await db
+		.update(peptides)
+		.set({ enc: encryptJson(merged, aad(userId)) })
+		.where(and(eq(peptides.id, id), eq(peptides.userId, userId)));
+}
+
+export async function setPeptideActive(userId: number, id: number, active: boolean): Promise<void> {
+	await db.update(peptides).set({ active }).where(and(eq(peptides.id, id), eq(peptides.userId, userId)));
+}
+
+/** Deletes a peptide. Its protocols/vials cascade and its doses cascade via the FKs (generated fresh,
+ *  so the cascade is real here — unlike the older tables noted in CLAUDE.md's FK caveat). */
+export async function deletePeptide(userId: number, id: number): Promise<void> {
+	await db.delete(peptides).where(and(eq(peptides.id, id), eq(peptides.userId, userId)));
+}
+
+/** Map of peptideId → display name, for labeling doses/protocols without re-decrypting per row. */
+export async function peptideNameMap(userId: number): Promise<Map<number, Peptide>> {
+	const rows = await db.select().from(peptides).where(eq(peptides.userId, userId));
+	return new Map(rows.map((r) => [r.id, decode(r)]));
+}

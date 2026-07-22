@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import PageHeader from '$lib/components/PageHeader.svelte';
+	import HealthNav from '$lib/components/HealthNav.svelte';
 	import Card from '$lib/components/Card.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -66,6 +67,8 @@
 		</button>
 	{/snippet}
 </PageHeader>
+
+<HealthNav />
 
 <div class="mx-auto max-w-md px-4 pb-4 space-y-5">
 	<HintCard id="body-intro" icon="scale">
