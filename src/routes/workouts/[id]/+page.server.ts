@@ -40,6 +40,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		allExercises,
 		lastSetsByExercise,
 		planExercises,
+		planName: plan?.plan.name ?? null,
 		goalsByExercise: await goalsByExercise(userId)
 	};
 };
