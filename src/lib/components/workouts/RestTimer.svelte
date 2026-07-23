@@ -3,25 +3,46 @@
 
 	let { targetSeconds = 90 }: { targetSeconds?: number } = $props();
 
-	let remaining = $state(targetSeconds);
+	// Drive the countdown off an absolute wall-clock deadline rather than a
+	// decrementing counter. Browsers throttle or suspend setInterval when the
+	// tab/app is backgrounded, which would freeze a counter-based timer; deriving
+	// `remaining` from Date.now() means the elapsed time is always real, and a
+	// visibilitychange resync makes the displayed value correct the instant the
+	// app is brought back to the foreground.
+	let endAt = $state(Date.now() + targetSeconds * 1000);
+	let now = $state(Date.now());
+
+	const remaining = $derived(Math.max(0, Math.ceil((endAt - now) / 1000)));
 	const done = $derived(remaining <= 0);
 	// Elapsed fraction, for the thin progress fill along the timer's bottom edge.
 	const elapsedPct = $derived(targetSeconds > 0 ? Math.min(100, ((targetSeconds - remaining) / targetSeconds) * 100) : 100);
 
 	$effect(() => {
-		if (remaining <= 0) return;
+		if (done) return;
 		const interval = setInterval(() => {
-			remaining = Math.max(0, remaining - 1);
-		}, 1000);
-		return () => clearInterval(interval);
+			now = Date.now();
+		}, 250);
+		// Resync immediately when returning to the foreground — background timers
+		// are throttled, so `now` may be stale until the next tick fires.
+		const onVisible = () => {
+			if (document.visibilityState === 'visible') now = Date.now();
+		};
+		document.addEventListener('visibilitychange', onVisible);
+		return () => {
+			clearInterval(interval);
+			document.removeEventListener('visibilitychange', onVisible);
+		};
 	});
 
 	function adjust(delta: number) {
-		remaining = Math.max(0, remaining + delta);
+		now = Date.now();
+		// Clamp so the deadline never falls into the past when subtracting.
+		endAt = Math.max(now, endAt + delta * 1000);
 	}
 
 	function skip() {
-		remaining = 0;
+		endAt = Date.now();
+		now = endAt;
 	}
 
 	function fmt(s: number) {
